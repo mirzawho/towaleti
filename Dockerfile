@@ -30,6 +30,8 @@ RUN flutter pub get --verbose
 # RUN flutter pub outdated
 # RUN flutter pub upgrade --major-versions
 
+RUN rm -rf /root/.pub-cache/hosted/pub.dev/geolocator_android-5.0.1+1
+
 RUN flutter build web --verbose
 
 # Record the exposed port
