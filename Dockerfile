@@ -26,11 +26,10 @@ RUN flutter config --enable-web
 RUN mkdir /app/
 COPY . /app/
 WORKDIR /app/
+RUN rm -rf /app/android /app/ios /app/windows /app/macos
 RUN flutter pub get --verbose
 # RUN flutter pub outdated
 # RUN flutter pub upgrade --major-versions
-
-RUN rm -rf /root/.pub-cache/hosted/pub.dev/geolocator_android-5.0.1+1
 
 RUN flutter build web --verbose
 
