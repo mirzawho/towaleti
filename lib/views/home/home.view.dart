@@ -4,9 +4,10 @@ import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:gap/gap.dart';
-import 'package:location/location.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
-import 'package:towaleti/shared/platform/io_map_cacher.dart';
+import 'package:towaleti/shared/platform/map_cacher.dart';
+import 'package:towaleti/shared/platform/location.dart';
+import 'package:location/location.dart' show PermissionStatus;
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -30,45 +31,52 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<PermissionStatus> getGPSPermission() async {
-    // check gps permission
-    PermissionStatus permission = await location.hasPermission();
+    try {
+      // check gps permission
+      PermissionStatus permission = await location.getPermission();
 
-    if (permission == PermissionStatus.denied) {
-      permission = await location.requestPermission();
-    }
+      if (permission == PermissionStatus.denied) {
+        permission = await location.requestPermission();
+      }
 
-    if ((permission == PermissionStatus.denied ||
-            permission == PermissionStatus.deniedForever) &&
-        mounted) {
-      // show dialog
-      showCupertinoDialog(
-        context: context,
-        builder: (context) {
-          return CupertinoAlertDialog(
-            title: const Text('دسترسی به موقعیت مکانی'),
-            content: const Text(
-                'برای دسترسی به موقعیت مکانی، لطفا دسترسی را فعال کنید.'),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('باشه'),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          );
-        },
-      );
-    }
+      if ((permission == PermissionStatus.denied ||
+              permission == PermissionStatus.deniedForever) &&
+          mounted) {
+        // show dialog
+        showCupertinoDialog(
+          context: context,
+          builder: (context) {
+            return CupertinoAlertDialog(
+              title: const Text('دسترسی به موقعیت مکانی'),
+              content: const Text(
+                  'برای دسترسی به موقعیت مکانی، لطفا دسترسی را فعال کنید.'),
+              actions: [
+                CupertinoDialogAction(
+                  child: const Text('باشه'),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            );
+          },
+        );
+      }
 
-    // if permission access is true, set has gps permission to true
-    if (permission == PermissionStatus.granted ||
-        permission == PermissionStatus.grantedLimited) {
-      hasGPSPermission = true;
-    } else {
+      // if permission access is true, set has gps permission to true
+      if (permission == PermissionStatus.granted ||
+          permission == PermissionStatus.grantedLimited) {
+        hasGPSPermission = true;
+      } else {
+        hasGPSPermission = false;
+      }
+      setState(() {});
+
+      return permission;
+    } catch (e) {
+      print(e);
       hasGPSPermission = false;
+      setState(() {});
+      return PermissionStatus.denied;
     }
-    setState(() {});
-
-    return permission;
   }
 
   void flyToMyLocation() async {
