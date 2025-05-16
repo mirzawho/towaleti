@@ -4,7 +4,7 @@ import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:gap/gap.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:location/location.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
 import 'package:towaleti/shared/platform/io_map_cacher.dart';
 
@@ -16,6 +16,7 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  Location location = Location();
   MapController mapController = MapController();
   bool hasGPSPermission = true;
   bool usingGPSPermission = false;
@@ -28,16 +29,16 @@ class _HomeViewState extends State<HomeView> {
     getGPSPermission();
   }
 
-  Future<LocationPermission> getGPSPermission() async {
+  Future<PermissionStatus> getGPSPermission() async {
     // check gps permission
-    LocationPermission permission = await Geolocator.checkPermission();
+    PermissionStatus permission = await location.hasPermission();
 
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    if (permission == PermissionStatus.denied) {
+      permission = await location.requestPermission();
     }
 
-    if ((permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) &&
+    if ((permission == PermissionStatus.denied ||
+            permission == PermissionStatus.deniedForever) &&
         mounted) {
       // show dialog
       showCupertinoDialog(
@@ -59,8 +60,8 @@ class _HomeViewState extends State<HomeView> {
     }
 
     // if permission access is true, set has gps permission to true
-    if (permission == LocationPermission.always ||
-        permission == LocationPermission.whileInUse) {
+    if (permission == PermissionStatus.granted ||
+        permission == PermissionStatus.grantedLimited) {
       hasGPSPermission = true;
     } else {
       hasGPSPermission = false;
@@ -81,14 +82,16 @@ class _HomeViewState extends State<HomeView> {
 
       var permission = await getGPSPermission();
 
-      if (permission == LocationPermission.always ||
-          permission == LocationPermission.whileInUse) {
-        Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        );
+      if (permission == PermissionStatus.granted ||
+          permission == PermissionStatus.grantedLimited) {
+        // Position position = await Geolocator.getCurrentPosition(
+        //   desiredAccuracy: LocationAccuracy.high,
+        // );
+
+        var position = await location.getLocation();
 
         mapController.move(
-          LatLng(position.latitude, position.longitude),
+          LatLng(position.latitude!, position.longitude!),
           14,
         );
       }

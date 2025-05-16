@@ -16,10 +16,10 @@ dependencies:
   flutter_map: ^8.1.1
   flutter_map_cache: ^2.0.0+1
   gap: ^3.0.1
-  geolocator: ^14.0.0
   http_cache_file_store: ^2.0.1
   intl: any
   latlong2: ^0.9.1
+  location: ^8.0.0
   path_provider: ^2.1.5
   soft_edge_blur: ^0.1.3
 
