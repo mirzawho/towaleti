@@ -1,13 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:gap/gap.dart';
+import 'package:towaleti/models/city.model.dart';
+import 'package:towaleti/models/place.model.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
 import 'package:towaleti/shared/platform/map_cacher.dart';
 import 'package:towaleti/shared/platform/location.dart';
 import 'package:location/location.dart' show PermissionStatus;
+import 'package:towaleti/shared/services/database.dart';
+import 'package:towaleti/shared/services/http.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -18,10 +26,14 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   Location location = Location();
+  DatabaseService database = DatabaseService();
+  HttpService http = HttpService();
   MapController mapController = MapController();
   bool hasGPSPermission = true;
   bool usingGPSPermission = false;
   bool usingSearch = false;
+  Timer? timerSearch;
+  List<PlaceModel> places = [];
 
   @override
   void initState() {
@@ -92,16 +104,24 @@ class _HomeViewState extends State<HomeView> {
 
       if (permission == PermissionStatus.granted ||
           permission == PermissionStatus.grantedLimited) {
-        // Position position = await Geolocator.getCurrentPosition(
-        //   desiredAccuracy: LocationAccuracy.high,
-        // );
-
         var position = await location.getLocation();
 
         mapController.move(
-          LatLng(position.latitude!, position.longitude!),
+          LatLng(position.latitude, position.longitude),
           14,
         );
+
+        // save location to database
+        database.setDynamic(
+          key: 'location',
+          value: {
+            'lat': position.latitude,
+            'lon': position.longitude,
+            'zoom': 14,
+          },
+        );
+
+        searchOnLocation();
       }
 
       usingGPSPermission = false;
@@ -112,6 +132,232 @@ class _HomeViewState extends State<HomeView> {
       usingGPSPermission = false;
       setState(() {});
     }
+  }
+
+  void onSelectCity({required CityModel city}) async {
+    var values = await database.getArray(key: 'city_latest');
+
+    // check city exists to values, remove and insert to top
+    if (values.contains(city.name)) {
+      values.remove(city.name);
+    }
+
+    values.insert(0, city.name);
+
+    if (values.length > 5) {
+      values = values.getRange(0, 4).toList();
+    }
+
+    database.setDynamic(key: 'city_latest', value: values);
+    database.setDynamic(
+      key: 'location',
+      value: {
+        'lat': city.lat,
+        'lon': city.lon,
+        'zoom': city.zoom,
+      },
+    );
+
+    mapController.move(
+      LatLng(city.lat, city.lon),
+      city.zoom,
+    );
+
+    searchOnLocation();
+  }
+
+  void searchOnLocation() {
+    if (timerSearch != null) {
+      timerSearch!.cancel();
+    }
+    timerSearch = Timer(const Duration(milliseconds: 500), () async {
+      var location = await database.getMap(key: 'location');
+
+      if (location != null) {
+        mapController.move(
+          LatLng(location['lat'], location['lon']),
+          double.parse(location['zoom'].toString()),
+        );
+
+        var result = await http.search(
+          lat: location['lat'],
+          lon: location['lon'],
+          zoom: int.tryParse(location['zoom'].toString()) ?? 14,
+        );
+
+        if (result['ok'] == true && result['places'] != null) {
+          places = [];
+
+          for (var item in result['places']) {
+            places.add(
+              PlaceModel(
+                lat: item['data']['geometry']['lon'],
+                lon: item['data']['geometry']['lat'],
+                name: item['data']['name'],
+                address: item['data']['address'],
+              ),
+            );
+          }
+
+          print('Places count: ${places.length}');
+
+          setState(() {});
+        } else {
+          places = [];
+          setState(() {});
+        }
+      }
+    });
+  }
+
+  void onSelectPlace({required PlaceModel place}) {
+    // open bottom sheet
+    showCupertinoModalPopup(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Container(
+          height: 240,
+          width: double.infinity,
+          padding: EdgeInsets.only(
+            top: 12,
+            left: 16,
+            right: 16,
+          ),
+          decoration: BoxDecoration(
+            color: CupertinoColors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CupertinoColors.quaternarySystemFill,
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: EdgeInsets.only(
+                    bottom: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.secondarySystemFill,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const Gap(8),
+              Row(
+                children: [
+                  Text(
+                    place.name,
+                    style: TextStyle(
+                      color: CupertinoColors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+
+                      // open maps
+                      launchUrl(
+                        Uri.parse(
+                          'https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}',
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.inactiveGray.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.location,
+                        size: 16,
+                        color: CupertinoColors.inactiveGray,
+                      ),
+                    ),
+                  ),
+                  const Gap(8),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+
+                      // open share dialog
+                      SharePlus.instance.share(
+                        ShareParams(
+                          subject: 'اشتراک گذاری مکان',
+                          uri: Uri.parse(
+                            'https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}',
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.inactiveGray.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.share,
+                        size: 16,
+                        color: CupertinoColors.inactiveGray,
+                      ),
+                    ),
+                  ),
+                  const Gap(8),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.inactiveGray.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.multiply,
+                        size: 16,
+                        color: CupertinoColors.inactiveGray,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Gap(8),
+              Text(
+                place.address,
+                style: TextStyle(
+                  color: CupertinoColors.inactiveGray,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Gap(
+                MediaQuery.of(context).padding.bottom + 16,
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -279,6 +525,9 @@ class _HomeViewState extends State<HomeView> {
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
               ),
+              onMapReady: () {
+                searchOnLocation();
+              },
             ),
             children: [
               TileLayer(
@@ -289,6 +538,63 @@ class _HomeViewState extends State<HomeView> {
                   // use the store for your CachedTileProvider instance
                   store: cacheStore,
                 ),
+              ),
+              MarkerLayer(
+                markers: [
+                  for (var item in places)
+                    Marker(
+                      point: LatLng(item.lat, item.lon),
+                      width: 24,
+                      height: 24,
+                      child: GestureDetector(
+                        onTap: () {
+                          mapController.move(
+                            LatLng(item.lat, item.lon),
+                            15,
+                          );
+
+                          onSelectPlace(place: item);
+
+                          setState(() {
+                            usingSearch = false;
+                          });
+                        },
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: CupertinoColors.white,
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: CupertinoColors.quaternarySystemFill,
+                                blurRadius: 12,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                            borderRadius: BorderRadius.circular(100),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Color(0xfffde68a),
+                                Color(0xfffbbf24),
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              CupertinoIcons.map_pin,
+                              size: 12,
+                              color: CupertinoColors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           );
@@ -313,7 +619,11 @@ class _HomeViewState extends State<HomeView> {
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutBack,
       clipBehavior: Clip.hardEdge,
-      height: usingSearch ? MediaQuery.of(context).size.height - 150 : height,
+      height: usingSearch
+          ? MediaQuery.of(context).size.height - 150
+          : places.isNotEmpty
+              ? height + 200
+              : height,
       // min height 56
       constraints: BoxConstraints(
         minHeight: height,
@@ -322,7 +632,6 @@ class _HomeViewState extends State<HomeView> {
         top: 12,
         left: 16,
         right: 16,
-        bottom: MediaQuery.of(context).padding.bottom + 16,
       ),
       decoration: BoxDecoration(
         color: CupertinoColors.white,
@@ -338,79 +647,302 @@ class _HomeViewState extends State<HomeView> {
           ),
         ],
       ),
-      child: SingleChildScrollView(
-        physics: const NeverScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  usingSearch = !usingSearch;
-                });
-              },
-              // on drag up (open) on drag down (close)
-              onVerticalDragUpdate: (details) {
-                if (details.delta.dy < 0) {
+      child: NotificationListener(
+        onNotification: (ScrollNotification notification) {
+          if (notification.metrics.pixels == 0) {
+            setState(() {
+              usingSearch = false;
+            });
+          }
+
+          // if scroll down more than 100, set usingSearch to false
+          if (notification.metrics.pixels > 10) {
+            setState(() {
+              usingSearch = true;
+            });
+          }
+
+          return true;
+        },
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: () {
                   setState(() {
-                    usingSearch = true;
+                    usingSearch = !usingSearch;
                   });
-                } else if (details.delta.dy > 0) {
-                  setState(() {
-                    usingSearch = false;
-                  });
-                }
-              },
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: EdgeInsets.only(
-                      bottom: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.secondarySystemFill,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  search(),
-                ],
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: MediaQuery.of(context).size.height -
-                  MediaQuery.of(context).padding.bottom -
-                  230,
-              child: SingleChildScrollView(
+                },
+                // on drag up (open) on drag down (close)
+                onVerticalDragUpdate: (details) {
+                  if (details.delta.dy < 0) {
+                    setState(() {
+                      usingSearch = true;
+                    });
+                  } else if (details.delta.dy > 0) {
+                    setState(() {
+                      usingSearch = false;
+                    });
+                  }
+                },
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Gap(32),
-                    cities(),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: EdgeInsets.only(
+                        bottom: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.secondarySystemFill,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    search(),
                   ],
                 ),
               ),
-            ),
-          ],
+              SizedBox(
+                width: double.infinity,
+                height: MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.bottom -
+                    210,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Gap(32),
+                      if (places.isNotEmpty) locations(),
+                      if (usingSearch) latestCities(),
+                      cities(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget cities() {
+  Widget locations() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'موقعیت مکانی',
+          style: TextStyle(
+            color: CupertinoColors.inactiveGray,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const Gap(8),
+        Container(
+          margin: EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: ListView(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            children: [
+              for (var item in places)
+                CupertinoListTile.notched(
+                  onTap: () {
+                    mapController.move(
+                      LatLng(item.lat, item.lon),
+                      15,
+                    );
+
+                    onSelectPlace(place: item);
+
+                    setState(() {
+                      usingSearch = false;
+                    });
+                  },
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 8,
+                  ),
+                  title: Text(
+                    item.name,
+                    style: TextStyle(
+                      color: CupertinoColors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    item.address,
+                    style: TextStyle(
+                      color: CupertinoColors.inactiveGray,
+                      fontSize: 12,
+                    ),
+                  ),
+                  trailing: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: CupertinoColors.white,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: CupertinoColors.quaternarySystemFill,
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Color(0xfffde68a),
+                          Color(0xfffbbf24),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        CupertinoIcons.map_pin,
+                        size: 20,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget latestCities() {
     Widget city({
-      required String name,
-      required double lat,
-      required double lon,
-      double zoom = 14,
+      required CityModel value,
     }) {
       return GestureDetector(
         onTap: () {
-          mapController.move(
-            LatLng(lat, lon),
-            zoom,
-          );
+          onSelectCity(city: value);
+
+          setState(() {
+            usingSearch = false;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(100),
+                  color: CupertinoColors.activeBlue.withOpacity(0.1),
+                ),
+                child: Center(
+                  child: Icon(
+                    CupertinoIcons.location_solid,
+                    size: 14,
+                    color: CupertinoColors.activeBlue,
+                  ),
+                ),
+              ),
+              const Gap(12),
+              Text(
+                value.name,
+                style: TextStyle(
+                  color: CupertinoColors.black,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return FutureBuilder(
+      future: database.getArray(key: 'city_latest'),
+      builder: (context, snapshot) {
+        var cities = [];
+
+        if (snapshot.hasData) {
+          var data = snapshot.data as List;
+
+          if (data.isNotEmpty) {
+            for (var item in data) {
+              var city = cities_database.firstWhere(
+                (element) => element.name == item,
+                orElse: () => CityModel(
+                  name: 'نامشخص',
+                  lat: 0,
+                  lon: 0,
+                  zoom: 5,
+                ),
+              );
+
+              cities.add(city);
+            }
+          }
+        }
+
+        if (cities.isEmpty) {
+          return Container();
+        }
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'شهر های اخیر',
+                style: TextStyle(
+                  color: CupertinoColors.inactiveGray,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Gap(8),
+              Container(
+                decoration: BoxDecoration(
+                  color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    for (var item in cities) city(value: item),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget cities() {
+    Widget city({
+      required CityModel value,
+    }) {
+      return GestureDetector(
+        onTap: () {
+          onSelectCity(city: value);
+
           setState(() {
             usingSearch = false;
           });
@@ -440,7 +972,7 @@ class _HomeViewState extends State<HomeView> {
               ),
               const Gap(8),
               Text(
-                name,
+                value.name,
                 style: TextStyle(
                   color: CupertinoColors.black,
                   fontSize: 12,
@@ -454,11 +986,14 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
+    var cities = [...cities_database];
+    cities.sort((a, b) => a.name.compareTo(b.name));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'شهرهای نزدیک',
+          'همه شهر ها',
           style: TextStyle(
             color: CupertinoColors.inactiveGray,
             fontSize: 12,
@@ -481,13 +1016,7 @@ class _HomeViewState extends State<HomeView> {
             physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
-                for (var item in cities_database)
-                  city(
-                    name: item.name,
-                    lat: item.lat,
-                    lon: item.lon,
-                    zoom: item.zoom,
-                  ),
+                for (var item in cities) city(value: item),
               ],
             ),
           ),
@@ -533,23 +1062,5 @@ class _HomeViewState extends State<HomeView> {
         ],
       ),
     );
-    // return CupertinoSearchTextField(
-    //   enabled: false,
-    //   padding: EdgeInsets.symmetric(
-    //     horizontal: 12,
-    //     vertical: 8,
-    //   ),
-    //   itemSize: 24,
-    //   borderRadius: BorderRadius.circular(8),
-    //   style: TextStyle(
-    //     color: CupertinoColors.black,
-    //   ),
-    //   placeholder: 'جستجو',
-    //   prefixIcon: Icon(
-    //     CupertinoIcons.search,
-    //     size: 20,
-    //     color: CupertinoColors.inactiveGray,
-    //   ),
-    // );
   }
 }
