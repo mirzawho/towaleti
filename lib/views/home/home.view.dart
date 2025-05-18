@@ -34,12 +34,16 @@ class _HomeViewState extends State<HomeView> {
   bool usingSearch = false;
   Timer? timerSearch;
   List<PlaceModel> places = [];
+  List<CityModel> citiesLatest = [];
+  List<CityModel> citiesSorted = [];
 
   @override
   void initState() {
     super.initState();
 
     getGPSPermission();
+    initCitiesLatest();
+    initCitiesSorted();
   }
 
   Future<PermissionStatus> getGPSPermission() async {
@@ -134,6 +138,36 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  void initCitiesLatest() async {
+    var values = await database.getArray(key: 'city_latest');
+    citiesLatest = [];
+
+    if (values.isNotEmpty) {
+      for (var item in values) {
+        var city = cities_database.firstWhere(
+          (element) => element.name == item,
+          orElse: () => CityModel(
+            name: 'نامشخص',
+            lat: 0,
+            lon: 0,
+            zoom: 5,
+          ),
+        );
+        citiesLatest.add(city);
+      }
+    }
+
+    setState(() {});
+
+    print('init cities latest ...');
+  }
+
+  void initCitiesSorted() async {
+    citiesSorted = [...cities_database];
+    citiesSorted.sort((a, b) => a.name.compareTo(b.name));
+    setState(() {});
+  }
+
   void onSelectCity({required CityModel city}) async {
     var values = await database.getArray(key: 'city_latest');
 
@@ -164,6 +198,7 @@ class _HomeViewState extends State<HomeView> {
     );
 
     searchOnLocation();
+    initCitiesLatest();
   }
 
   void searchOnLocation() {
@@ -649,14 +684,14 @@ class _HomeViewState extends State<HomeView> {
       ),
       child: NotificationListener(
         onNotification: (ScrollNotification notification) {
-          if (notification.metrics.pixels == 0) {
+          if (notification.metrics.pixels == 0 && usingSearch == true) {
             setState(() {
               usingSearch = false;
             });
           }
 
           // if scroll down more than 100, set usingSearch to false
-          if (notification.metrics.pixels > 10) {
+          if (notification.metrics.pixels > 10 && usingSearch == false) {
             setState(() {
               usingSearch = true;
             });
@@ -714,7 +749,7 @@ class _HomeViewState extends State<HomeView> {
                     children: [
                       const Gap(32),
                       if (places.isNotEmpty) locations(),
-                      if (usingSearch) latestCities(),
+                      if (citiesLatest.isNotEmpty) latestCities(),
                       cities(),
                     ],
                   ),
@@ -874,64 +909,33 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    return FutureBuilder(
-      future: database.getArray(key: 'city_latest'),
-      builder: (context, snapshot) {
-        var cities = [];
-
-        if (snapshot.hasData) {
-          var data = snapshot.data as List;
-
-          if (data.isNotEmpty) {
-            for (var item in data) {
-              var city = cities_database.firstWhere(
-                (element) => element.name == item,
-                orElse: () => CityModel(
-                  name: 'نامشخص',
-                  lat: 0,
-                  lon: 0,
-                  zoom: 5,
-                ),
-              );
-
-              cities.add(city);
-            }
-          }
-        }
-
-        if (cities.isEmpty) {
-          return Container();
-        }
-
-        return Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'شهر های اخیر',
-                style: TextStyle(
-                  color: CupertinoColors.inactiveGray,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Gap(8),
-              Container(
-                decoration: BoxDecoration(
-                  color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    for (var item in cities) city(value: item),
-                  ],
-                ),
-              ),
-            ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'شهر های اخیر',
+            style: TextStyle(
+              color: CupertinoColors.inactiveGray,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        );
-      },
+          const Gap(8),
+          Container(
+            decoration: BoxDecoration(
+              color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                for (var item in citiesLatest) city(value: item),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -986,9 +990,6 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    var cities = [...cities_database];
-    cities.sort((a, b) => a.name.compareTo(b.name));
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1016,7 +1017,7 @@ class _HomeViewState extends State<HomeView> {
             physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
-                for (var item in cities) city(value: item),
+                for (var item in citiesSorted) city(value: item),
               ],
             ),
           ),
