@@ -4,7 +4,6 @@ import 'package:towaleti/shared/theme.dart';
 import 'package:towaleti/views/home/home.view.dart';
 import 'package:towaleti/views/offline/offline.view.dart';
 import 'package:towaleti/views/page/page.view.dart';
-import 'package:towaleti/views/splash/splash.view.dart';
 
 void main() {
   runApp(const MainApp());

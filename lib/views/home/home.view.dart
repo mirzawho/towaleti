@@ -48,6 +48,66 @@ class _HomeViewState extends State<HomeView> {
     initCitiesSorted();
   }
 
+  void openInfoBottomSheet() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 310,
+        width: double.infinity,
+        padding: EdgeInsets.only(
+          top: 12,
+          left: 16,
+          right: 16,
+        ),
+        decoration: BoxDecoration(
+          color: CupertinoColors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.quaternarySystemFill,
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: EdgeInsets.only(
+                bottom: 8,
+              ),
+              decoration: BoxDecoration(
+                color: CupertinoColors.secondarySystemFill,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const Gap(20),
+            Text(
+              'توالتی',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+              ),
+            ),
+            Text(
+              '0.1.0',
+              style: TextStyle(
+                color: CupertinoColors.inactiveGray,
+              ),
+            ),
+            const Gap(20),
+            links(),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<PermissionStatus> getGPSPermission() async {
     try {
       // check gps permission
@@ -160,8 +220,6 @@ class _HomeViewState extends State<HomeView> {
     }
 
     setState(() {});
-
-    print('init cities latest ...');
   }
 
   void initCitiesSorted() async {
@@ -237,8 +295,6 @@ class _HomeViewState extends State<HomeView> {
               ),
             );
           }
-
-          print('Places count: ${places.length}');
 
           bottomSheetState = 1;
 
@@ -451,6 +507,65 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Widget links() {
+    Widget link({
+      required String title,
+      required String path,
+    }) {
+      return GestureDetector(
+        onTap: () {
+          print('moving to $path');
+          Navigator.pushNamed(context, path);
+        },
+        child: Container(
+          height: 50,
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+          ),
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                CupertinoIcons.chevron_back,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          link(
+            title: 'شرایط استفاده',
+            path: '/terms',
+          ),
+          link(
+            title: 'حریم خصوصی',
+            path: '/privacy',
+          ),
+          link(
+            title: 'درباره ما',
+            path: '/about',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget header() {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 300),
@@ -508,7 +623,7 @@ class _HomeViewState extends State<HomeView> {
             child: Column(
               children: [
                 GestureDetector(
-                  onTap: null,
+                  onTap: () => openInfoBottomSheet(),
                   child: SizedBox(
                     width: 24,
                     height: 24,
@@ -597,6 +712,8 @@ class _HomeViewState extends State<HomeView> {
                           onSelectPlace(place: item);
 
                           setState(() {
+                            bottomSheetState =
+                                bottomSheetState == 2 ? 1 : bottomSheetState;
                             usingSearch = false;
                           });
                         },
@@ -794,6 +911,8 @@ class _HomeViewState extends State<HomeView> {
                     210,
                 child: SingleChildScrollView(
                   padding: EdgeInsets.only(
+                    left: 4,
+                    right: 4,
                     bottom: MediaQuery.of(context).padding.bottom + 32,
                   ),
                   child: Column(
@@ -803,6 +922,8 @@ class _HomeViewState extends State<HomeView> {
                       if (places.isNotEmpty) locations(),
                       if (citiesLatest.isNotEmpty) latestCities(),
                       cities(),
+                      const Gap(12),
+                      links(),
                     ],
                   ),
                 ),
@@ -829,6 +950,7 @@ class _HomeViewState extends State<HomeView> {
         const Gap(8),
         Container(
           margin: EdgeInsets.only(bottom: 12),
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
             borderRadius: BorderRadius.circular(8),
@@ -849,12 +971,16 @@ class _HomeViewState extends State<HomeView> {
                     onSelectPlace(place: item);
 
                     setState(() {
+                      bottomSheetState =
+                          bottomSheetState == 2 ? 1 : bottomSheetState;
                       usingSearch = false;
                     });
                   },
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 8,
+                  padding: EdgeInsets.only(
+                    top: 8,
+                    left: 8,
+                    right: 12,
+                    bottom: 8,
                   ),
                   title: Text(
                     item.name,
@@ -872,8 +998,8 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                   trailing: Container(
-                    width: 48,
-                    height: 48,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(100),
                       border: Border.all(
