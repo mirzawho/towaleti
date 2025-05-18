@@ -36,6 +36,8 @@ class _HomeViewState extends State<HomeView> {
   List<PlaceModel> places = [];
   List<CityModel> citiesLatest = [];
   List<CityModel> citiesSorted = [];
+  int bottomSheetState =
+      0; // 0 = closed (just search appear), 1 = half, 2 = full
 
   @override
   void initState() {
@@ -211,7 +213,9 @@ class _HomeViewState extends State<HomeView> {
       if (location != null) {
         mapController.move(
           LatLng(location['lat'], location['lon']),
-          double.parse(location['zoom'].toString()),
+          location['zoom'] == null
+              ? 13
+              : double.parse(location['zoom'].toString()),
         );
 
         var result = await http.search(
@@ -235,6 +239,8 @@ class _HomeViewState extends State<HomeView> {
           }
 
           print('Places count: ${places.length}');
+
+          bottomSheetState = 1;
 
           setState(() {});
         } else {
@@ -449,7 +455,7 @@ class _HomeViewState extends State<HomeView> {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutBack,
-      opacity: usingSearch ? 0 : 1,
+      opacity: bottomSheetState == 2 ? 0 : 1,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -649,16 +655,24 @@ class _HomeViewState extends State<HomeView> {
 
   Widget bottomSheet() {
     var height = MediaQuery.of(context).padding.bottom + 16 + 56 + 4 + 16;
+    var halfHeigth = height + 200;
+    var fullHeight = MediaQuery.of(context).size.height - 150;
+
+    var currentHeight = height;
+
+    if (bottomSheetState == 1) {
+      currentHeight = halfHeigth;
+    }
+
+    if (bottomSheetState == 2) {
+      currentHeight = fullHeight;
+    }
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutBack,
       clipBehavior: Clip.hardEdge,
-      height: usingSearch
-          ? MediaQuery.of(context).size.height - 150
-          : places.isNotEmpty
-              ? height + 200
-              : height,
+      height: currentHeight,
       // min height 56
       constraints: BoxConstraints(
         minHeight: height,
@@ -684,17 +698,36 @@ class _HomeViewState extends State<HomeView> {
       ),
       child: NotificationListener(
         onNotification: (ScrollNotification notification) {
-          if (notification.metrics.pixels == 0 && usingSearch == true) {
-            setState(() {
-              usingSearch = false;
-            });
-          }
+          // handle 3 times bottom height state
+          if (notification is ScrollUpdateNotification) {
+            // Detect scroll direction
+            bool isScrollingDown = notification.scrollDelta != null &&
+                notification.scrollDelta! > 0;
+            bool isScrollingUp = notification.scrollDelta != null &&
+                notification.scrollDelta! < 0;
+            bool isAtTop = notification.metrics.pixels == 0;
 
-          // if scroll down more than 100, set usingSearch to false
-          if (notification.metrics.pixels > 10 && usingSearch == false) {
-            setState(() {
-              usingSearch = true;
-            });
+            // Handle scrolling down
+            if (isScrollingDown && bottomSheetState < 2) {
+              setState(() {
+                bottomSheetState = 2;
+                usingSearch = true;
+              });
+            }
+
+            // Handle scrolling up when at top
+            if (isScrollingUp && isAtTop) {
+              if (bottomSheetState == 2) {
+                setState(() {
+                  bottomSheetState = 1;
+                });
+              } else if (bottomSheetState == 1) {
+                setState(() {
+                  bottomSheetState = 0;
+                  usingSearch = false;
+                });
+              }
+            }
           }
 
           return true;
@@ -707,18 +740,34 @@ class _HomeViewState extends State<HomeView> {
                 onTap: () {
                   setState(() {
                     usingSearch = !usingSearch;
+                    bottomSheetState = usingSearch ? 1 : 0;
                   });
                 },
                 // on drag up (open) on drag down (close)
+                // Replace the empty onVerticalDragUpdate with:
                 onVerticalDragUpdate: (details) {
-                  if (details.delta.dy < 0) {
-                    setState(() {
-                      usingSearch = true;
-                    });
-                  } else if (details.delta.dy > 0) {
-                    setState(() {
-                      usingSearch = false;
-                    });
+                  // Dragging up
+                  if (details.delta.dy < -10) {
+                    if (bottomSheetState == 0) {
+                      setState(() {
+                        bottomSheetState = 1;
+                        usingSearch = true;
+                      });
+                    }
+                  }
+
+                  // Dragging down
+                  if (details.delta.dy > 10) {
+                    if (bottomSheetState == 2) {
+                      setState(() {
+                        bottomSheetState = 1;
+                      });
+                    } else if (bottomSheetState == 1) {
+                      setState(() {
+                        bottomSheetState = 0;
+                        usingSearch = false;
+                      });
+                    }
                   }
                 },
                 child: Column(
@@ -744,6 +793,9 @@ class _HomeViewState extends State<HomeView> {
                     MediaQuery.of(context).padding.bottom -
                     210,
                 child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 32,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
