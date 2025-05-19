@@ -505,6 +505,20 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void onMapMove() {
+    // set latest location
+    database.setDynamic(
+      key: 'location',
+      value: {
+        'lat': mapController.camera.center.latitude,
+        'lon': mapController.camera.center.longitude,
+        'zoom': mapController.camera.zoom,
+      },
+    );
+
+    searchOnLocation();
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -731,6 +745,11 @@ class _HomeViewState extends State<HomeView> {
               ),
               onMapReady: () {
                 searchOnLocation();
+              },
+              onPositionChanged: (position, hasGesture) {
+                if (hasGesture) {
+                  onMapMove();
+                }
               },
             ),
             children: [
