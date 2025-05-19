@@ -6,6 +6,7 @@ import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:gap/gap.dart';
+import 'package:towaleti/models/ad.model.dart';
 import 'package:towaleti/models/city.model.dart';
 import 'package:towaleti/models/place.model.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
@@ -14,6 +15,7 @@ import 'package:towaleti/shared/platform/location.dart';
 import 'package:location/location.dart' show PermissionStatus;
 import 'package:towaleti/shared/services/database.dart';
 import 'package:towaleti/shared/services/http.dart';
+import 'package:towaleti/shared/widget/ad.widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -29,6 +31,7 @@ class _HomeViewState extends State<HomeView> {
   DatabaseService database = DatabaseService();
   HttpService http = HttpService();
   MapController mapController = MapController();
+  ScrollController scrollController = ScrollController();
   bool hasGPSPermission = true;
   bool usingGPSPermission = false;
   bool usingSearch = false;
@@ -40,6 +43,7 @@ class _HomeViewState extends State<HomeView> {
       0; // 0 = closed (just search appear), 1 = half, 2 = full
   LatLng? currentPosition;
   bool isChangingState = false;
+  AdModel? ad;
 
   @override
   void initState() {
@@ -48,6 +52,7 @@ class _HomeViewState extends State<HomeView> {
     getGPSPermission();
     initCitiesLatest();
     initCitiesSorted();
+    initAd();
   }
 
   void openInfoBottomSheet() {
@@ -233,6 +238,24 @@ class _HomeViewState extends State<HomeView> {
     setState(() {});
   }
 
+  void initAd() async {
+    try {
+      var result = await http.ad();
+
+      if (result['ok'] == true) {
+        ad = AdModel.fromJson(
+          result['ad'],
+        );
+
+        bottomSheetState = 1;
+      }
+
+      setState(() {});
+    } catch (e) {
+      //
+    }
+  }
+
   void onSelectCity({required CityModel city}) async {
     var values = await database.getArray(key: 'city_latest');
 
@@ -264,6 +287,11 @@ class _HomeViewState extends State<HomeView> {
 
     searchOnLocation();
     initCitiesLatest();
+
+    setState(() {
+      bottomSheetState = 1;
+      usingSearch = false;
+    });
   }
 
   void searchOnLocation() {
@@ -276,11 +304,19 @@ class _HomeViewState extends State<HomeView> {
       if (location != null &&
           location['lat'] != null &&
           location['lon'] != null) {
+        double zoom = location['zoom'] == null
+            ? 13.0
+            : double.parse(location['zoom'].toString());
+
+        if (zoom < 13) {
+          places = [];
+          setState(() {});
+          return;
+        }
+
         mapController.move(
           LatLng(location['lat'], location['lon']),
-          location['zoom'] == null
-              ? 13
-              : double.parse(location['zoom'].toString()),
+          zoom,
         );
 
         var result = await http.search(
@@ -930,6 +966,11 @@ class _HomeViewState extends State<HomeView> {
             // Handle scrolling up when at top
             if (isAtTop) {
               if (bottomSheetState == 2 && !isChangingState) {
+                scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                );
                 isChangingState = true;
                 bottomSheetState = 1;
                 setState(() {});
@@ -954,6 +995,12 @@ class _HomeViewState extends State<HomeView> {
                     usingSearch = !usingSearch;
                     bottomSheetState = usingSearch ? 1 : 0;
                   });
+
+                  scrollController.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutBack,
+                  );
                 },
                 // on drag up (open) on drag down (close)
                 // Replace the empty onVerticalDragUpdate with:
@@ -976,6 +1023,11 @@ class _HomeViewState extends State<HomeView> {
                         usingSearch = false;
                       });
                     } else if (bottomSheetState == 2) {
+                      scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                      );
                       setState(() {
                         bottomSheetState = 1;
                       });
@@ -1022,10 +1074,13 @@ class _HomeViewState extends State<HomeView> {
                 duration: Duration(milliseconds: 300),
                 child: SizedBox(
                   width: double.infinity,
-                  height: MediaQuery.of(context).size.height -
-                      MediaQuery.of(context).padding.bottom -
-                      210,
+                  height: bottomSheetState == 1
+                      ? 300
+                      : MediaQuery.of(context).size.height -
+                          MediaQuery.of(context).padding.bottom -
+                          210,
                   child: SingleChildScrollView(
+                    controller: scrollController,
                     padding: EdgeInsets.only(
                       left: 16,
                       right: 16,
@@ -1036,6 +1091,7 @@ class _HomeViewState extends State<HomeView> {
                       children: [
                         const Gap(12),
                         if (places.isNotEmpty) locations(),
+                        if (ad != null) AdWidget(ad: ad!),
                         if (citiesLatest.isNotEmpty) latestCities(),
                         cities(),
                         const Gap(12),

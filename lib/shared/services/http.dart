@@ -30,4 +30,16 @@ class HttpService {
       throw Exception('Failed to load data');
     }
   }
+
+  Future<dynamic> ad() async {
+    final response = await dio.get(
+      'https://towaleti.sayheymirza.workers.dev/ad',
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
 }
