@@ -47,6 +47,9 @@ class _DynamicPageViewState extends State<DynamicPageView> {
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           contents[widget.slug]['title'],
+          style: TextStyle(
+            fontFamily: "YekanBakh",
+          ),
         ),
       ),
       child: SingleChildScrollView(
@@ -56,6 +59,9 @@ class _DynamicPageViewState extends State<DynamicPageView> {
         ),
         child: Text(
           contents[widget.slug]['content'],
+          style: TextStyle(
+            color: CupertinoColors.darkBackgroundGray,
+          ),
         ),
       ),
     );

@@ -38,6 +38,8 @@ class _HomeViewState extends State<HomeView> {
   List<CityModel> citiesSorted = [];
   int bottomSheetState =
       0; // 0 = closed (just search appear), 1 = half, 2 = full
+  LatLng? currentPosition;
+  bool isChangingState = false;
 
   @override
   void initState() {
@@ -90,6 +92,7 @@ class _HomeViewState extends State<HomeView> {
             Text(
               'توالتی',
               style: TextStyle(
+                color: CupertinoColors.black,
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
               ),
@@ -176,6 +179,8 @@ class _HomeViewState extends State<HomeView> {
           LatLng(position.latitude, position.longitude),
           14,
         );
+
+        currentPosition = LatLng(position.latitude, position.longitude);
 
         // save location to database
         database.setDynamic(
@@ -268,7 +273,9 @@ class _HomeViewState extends State<HomeView> {
     timerSearch = Timer(const Duration(milliseconds: 500), () async {
       var location = await database.getMap(key: 'location');
 
-      if (location != null) {
+      if (location != null &&
+          location['lat'] != null &&
+          location['lon'] != null) {
         mapController.move(
           LatLng(location['lat'], location['lon']),
           location['zoom'] == null
@@ -290,11 +297,15 @@ class _HomeViewState extends State<HomeView> {
               PlaceModel(
                 lat: item['data']['geometry']['lon'],
                 lon: item['data']['geometry']['lat'],
+                distance: item['data']['distance'],
                 name: item['data']['name'],
                 address: item['data']['address'],
               ),
             );
           }
+
+          // sort places with distance
+          places.sort((a, b) => a.distance.compareTo(b.distance));
 
           bottomSheetState = 1;
 
@@ -439,11 +450,48 @@ class _HomeViewState extends State<HomeView> {
                 ],
               ),
               const Gap(8),
-              Text(
-                place.address,
-                style: TextStyle(
-                  color: CupertinoColors.inactiveGray,
-                  fontSize: 14,
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.inactiveGray.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'فاصله',
+                      style: TextStyle(
+                        color: CupertinoColors.inactiveGray,
+                        fontSize: 10,
+                      ),
+                    ),
+                    Text(
+                      place.distance < 1
+                          ? '${(place.distance * 1000).toStringAsFixed(0)} متر'
+                          : '${place.distance.toStringAsFixed(1)} کیلومتر',
+                      style: TextStyle(
+                        color: CupertinoColors.black,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Gap(12),
+                    Text(
+                      'آدرس',
+                      style: TextStyle(
+                        color: CupertinoColors.inactiveGray,
+                        fontSize: 10,
+                      ),
+                    ),
+                    Text(
+                      place.address,
+                      style: TextStyle(
+                        color: CupertinoColors.black,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const Spacer(),
@@ -514,7 +562,6 @@ class _HomeViewState extends State<HomeView> {
     }) {
       return GestureDetector(
         onTap: () {
-          print('moving to $path');
           Navigator.pushNamed(context, path);
         },
         child: Container(
@@ -529,6 +576,7 @@ class _HomeViewState extends State<HomeView> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
+                  color: CupertinoColors.black,
                 ),
               ),
               const Spacer(),
@@ -697,6 +745,35 @@ class _HomeViewState extends State<HomeView> {
               ),
               MarkerLayer(
                 markers: [
+                  if (currentPosition != null)
+                    Marker(
+                      point: currentPosition!,
+                      width: 20,
+                      height: 20,
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: CupertinoColors.quaternarySystemFill,
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: CupertinoColors.white,
+                            width: 2,
+                          ),
+                          color: CupertinoColors.activeBlue,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              MarkerLayer(
+                markers: [
                   for (var item in places)
                     Marker(
                       point: LatLng(item.lat, item.lon),
@@ -794,11 +871,7 @@ class _HomeViewState extends State<HomeView> {
       constraints: BoxConstraints(
         minHeight: height,
       ),
-      padding: EdgeInsets.only(
-        top: 12,
-        left: 16,
-        right: 16,
-      ),
+
       decoration: BoxDecoration(
         color: CupertinoColors.white,
         borderRadius: BorderRadius.only(
@@ -820,28 +893,31 @@ class _HomeViewState extends State<HomeView> {
             // Detect scroll direction
             bool isScrollingDown = notification.scrollDelta != null &&
                 notification.scrollDelta! > 0;
-            bool isScrollingUp = notification.scrollDelta != null &&
-                notification.scrollDelta! < 0;
-            bool isAtTop = notification.metrics.pixels == 0;
+            bool isAtTop = notification.metrics.pixels <= 10;
 
             // Handle scrolling down
-            if (isScrollingDown && bottomSheetState < 2) {
-              setState(() {
-                bottomSheetState = 2;
-                usingSearch = true;
+            if (isScrollingDown && bottomSheetState < 2 && !isChangingState) {
+              isChangingState = true;
+              bottomSheetState = 2;
+              usingSearch = true;
+              setState(() {});
+              // Reset flag after short delay
+              Future.delayed(Duration(milliseconds: 1000), () {
+                isChangingState = false;
+                setState(() {});
               });
             }
 
             // Handle scrolling up when at top
-            if (isScrollingUp && isAtTop) {
-              if (bottomSheetState == 2) {
-                setState(() {
-                  bottomSheetState = 1;
-                });
-              } else if (bottomSheetState == 1) {
-                setState(() {
-                  bottomSheetState = 0;
-                  usingSearch = false;
+            if (isAtTop) {
+              if (bottomSheetState == 2 && !isChangingState) {
+                isChangingState = true;
+                bottomSheetState = 1;
+                setState(() {});
+                // Reset flag after short delay
+                Future.delayed(Duration(milliseconds: 1000), () {
+                  isChangingState = false;
+                  setState(() {});
                 });
               }
             }
@@ -864,7 +940,7 @@ class _HomeViewState extends State<HomeView> {
                 // Replace the empty onVerticalDragUpdate with:
                 onVerticalDragUpdate: (details) {
                   // Dragging up
-                  if (details.delta.dy < -10) {
+                  if (details.delta.dy < 0) {
                     if (bottomSheetState == 0) {
                       setState(() {
                         bottomSheetState = 1;
@@ -874,57 +950,79 @@ class _HomeViewState extends State<HomeView> {
                   }
 
                   // Dragging down
-                  if (details.delta.dy > 10) {
-                    if (bottomSheetState == 2) {
-                      setState(() {
-                        bottomSheetState = 1;
-                      });
-                    } else if (bottomSheetState == 1) {
+                  if (details.delta.dy > 0) {
+                    if (bottomSheetState == 1) {
                       setState(() {
                         bottomSheetState = 0;
                         usingSearch = false;
                       });
+                    } else if (bottomSheetState == 2) {
+                      setState(() {
+                        bottomSheetState = 1;
+                      });
                     }
                   }
                 },
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: EdgeInsets.only(
-                        bottom: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.secondarySystemFill,
-                        borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: EdgeInsets.only(
+                    top: 12,
+                    left: 16,
+                    right: 16,
+                    bottom: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: bottomSheetState != 0
+                            ? CupertinoColors.systemGrey6
+                            : CupertinoColors.white,
+                        width: bottomSheetState != 0 ? 1 : 0,
                       ),
                     ),
-                    search(),
-                  ],
-                ),
-              ),
-              SizedBox(
-                width: double.infinity,
-                height: MediaQuery.of(context).size.height -
-                    MediaQuery.of(context).padding.bottom -
-                    210,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.only(
-                    left: 4,
-                    right: 4,
-                    bottom: MediaQuery.of(context).padding.bottom + 32,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Gap(32),
-                      if (places.isNotEmpty) locations(),
-                      if (citiesLatest.isNotEmpty) latestCities(),
-                      cities(),
-                      const Gap(12),
-                      links(),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: EdgeInsets.only(
+                          bottom: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.secondarySystemFill,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      search(),
                     ],
+                  ),
+                ),
+              ),
+              AnimatedOpacity(
+                opacity: bottomSheetState != 0 ? 1 : 0,
+                duration: Duration(milliseconds: 300),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.bottom -
+                      210,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      bottom: MediaQuery.of(context).padding.bottom + 32,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Gap(12),
+                        if (places.isNotEmpty) locations(),
+                        if (citiesLatest.isNotEmpty) latestCities(),
+                        cities(),
+                        const Gap(12),
+                        links(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -982,13 +1080,28 @@ class _HomeViewState extends State<HomeView> {
                     right: 12,
                     bottom: 8,
                   ),
-                  title: Text(
-                    item.name,
-                    style: TextStyle(
-                      color: CupertinoColors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  title: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        item.name,
+                        style: TextStyle(
+                          color: CupertinoColors.black,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Gap(4),
+                      Text(
+                        item.distance < 1
+                            ? '${(item.distance * 1000).toStringAsFixed(0)} متر'
+                            : '${item.distance.toStringAsFixed(1)} کیلومتر',
+                        style: TextStyle(
+                          color: CupertinoColors.inactiveGray,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                   subtitle: Text(
                     item.address,
