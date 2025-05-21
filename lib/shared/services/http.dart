@@ -10,6 +10,19 @@ class HttpService {
     ),
   );
 
+  // handshake
+  Future<dynamic> handshake() async {
+    final response = await dio.get(
+      'https://towaleti.sayheymirza.workers.dev/handshake',
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+
   Future<dynamic> search({
     required double lat,
     required double lon,

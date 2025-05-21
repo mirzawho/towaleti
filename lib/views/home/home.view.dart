@@ -256,6 +256,14 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  void initHandshake() async {
+    try {
+      await http.handshake();
+    } catch (e) {
+      //
+    }
+  }
+
   void onSelectCity({required CityModel city}) async {
     var values = await database.getArray(key: 'city_latest');
 
