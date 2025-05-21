@@ -53,6 +53,7 @@ class _HomeViewState extends State<HomeView> {
     initCitiesLatest();
     initCitiesSorted();
     initAd();
+    initHandshake();
   }
 
   void openInfoBottomSheet() {
