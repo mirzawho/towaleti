@@ -102,12 +102,12 @@ class AdWidget extends StatelessWidget {
                           ),
                           const Gap(12),
                           SizedBox(
-                            width: MediaQuery.of(context).size.width - 200,
+                            width: MediaQuery.of(context).size.width - 160,
                             child: Text(
                               ad.subtitle,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: CupertinoColors.inactiveGray,
+                                color: CupertinoColors.white.withOpacity(0.7),
                                 fontSize: 12,
                               ),
                             ),

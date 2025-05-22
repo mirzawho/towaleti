@@ -18,6 +18,7 @@ import 'package:towaleti/shared/services/http.dart';
 import 'package:towaleti/shared/widget/ad.widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_map_animations/flutter_map_animations.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -26,11 +27,11 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> {
+class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Location location = Location();
   DatabaseService database = DatabaseService();
   HttpService http = HttpService();
-  MapController mapController = MapController();
+  late AnimatedMapController mapController = AnimatedMapController(vsync: this);
   ScrollController scrollController = ScrollController();
   bool hasGPSPermission = true;
   bool usingGPSPermission = false;
@@ -54,6 +55,28 @@ class _HomeViewState extends State<HomeView> {
     initCitiesSorted();
     initAd();
     initHandshake();
+  }
+
+  void zoomIn() {
+    var zoom = mapController.mapController.camera.zoom + 1;
+
+    if (zoom <= 17) {
+      mapController.animateTo(
+        dest: mapController.mapController.camera.center,
+        zoom: zoom,
+      );
+    }
+  }
+
+  void zoomOut() {
+    var zoom = mapController.mapController.camera.zoom - 1;
+
+    if (zoom >= 3) {
+      mapController.animateTo(
+        dest: mapController.mapController.camera.center,
+        zoom: zoom,
+      );
+    }
   }
 
   void openInfoBottomSheet() {
@@ -181,9 +204,9 @@ class _HomeViewState extends State<HomeView> {
           permission == PermissionStatus.grantedLimited) {
         var position = await location.getLocation();
 
-        mapController.move(
-          LatLng(position.latitude, position.longitude),
-          14,
+        mapController.animateTo(
+          dest: LatLng(position.latitude, position.longitude),
+          zoom: 14,
         );
 
         currentPosition = LatLng(position.latitude, position.longitude);
@@ -289,9 +312,9 @@ class _HomeViewState extends State<HomeView> {
       },
     );
 
-    mapController.move(
-      LatLng(city.lat, city.lon),
-      city.zoom,
+    mapController.animateTo(
+      dest: LatLng(city.lat, city.lon),
+      zoom: city.zoom,
     );
 
     searchOnLocation();
@@ -323,9 +346,9 @@ class _HomeViewState extends State<HomeView> {
           return;
         }
 
-        mapController.move(
-          LatLng(location['lat'], location['lon']),
-          zoom,
+        mapController.animateTo(
+          dest: LatLng(location['lat'], location['lon']),
+          zoom: zoom,
         );
 
         var result = await http.search(
@@ -342,7 +365,7 @@ class _HomeViewState extends State<HomeView> {
               PlaceModel(
                 lat: item['data']['geometry']['lon'],
                 lon: item['data']['geometry']['lat'],
-                distance: item['data']['distance'],
+                distance: double.parse(item['data']['distance'].toString()),
                 name: item['data']['name'],
                 address: item['data']['address'],
               ),
@@ -370,7 +393,7 @@ class _HomeViewState extends State<HomeView> {
       barrierDismissible: true,
       builder: (context) {
         return Container(
-          height: 240,
+          height: 320,
           width: double.infinity,
           padding: EdgeInsets.only(
             top: 12,
@@ -410,41 +433,19 @@ class _HomeViewState extends State<HomeView> {
               const Gap(8),
               Row(
                 children: [
-                  Text(
-                    place.name,
-                    style: TextStyle(
-                      color: CupertinoColors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-
-                      // open maps
-                      launchUrl(
-                        Uri.parse(
-                          'https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}',
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.inactiveGray.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Icon(
-                        CupertinoIcons.location,
-                        size: 16,
-                        color: CupertinoColors.inactiveGray,
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width - 96,
+                    child: Text(
+                      place.name,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: CupertinoColors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const Gap(8),
                   GestureDetector(
                     onTap: () {
                       Navigator.pop(context);
@@ -505,23 +506,25 @@ class _HomeViewState extends State<HomeView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'فاصله',
-                      style: TextStyle(
-                        color: CupertinoColors.inactiveGray,
-                        fontSize: 10,
+                    if (currentPosition != null)
+                      Text(
+                        'فاصله',
+                        style: TextStyle(
+                          color: CupertinoColors.inactiveGray,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                    Text(
-                      place.distance < 1
-                          ? '${(place.distance * 1000).toStringAsFixed(0)} متر'
-                          : '${place.distance.toStringAsFixed(1)} کیلومتر',
-                      style: TextStyle(
-                        color: CupertinoColors.black,
-                        fontSize: 14,
+                    if (currentPosition != null)
+                      Text(
+                        place.distance < 1
+                            ? '${(place.distance * 1000).toStringAsFixed(0)} متر'
+                            : '${place.distance.toStringAsFixed(1)} کیلومتر',
+                        style: TextStyle(
+                          color: CupertinoColors.black,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    const Gap(12),
+                    if (currentPosition != null) const Gap(12),
                     Text(
                       'آدرس',
                       style: TextStyle(
@@ -540,6 +543,31 @@ class _HomeViewState extends State<HomeView> {
                 ),
               ),
               const Spacer(),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: CupertinoButton.filled(
+                  sizeStyle: CupertinoButtonSize.medium,
+                  borderRadius: BorderRadius.circular(8),
+                  onPressed: () {
+                    Navigator.pop(context);
+
+                    // open maps
+                    launchUrl(
+                      Uri.parse(
+                        'https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lon}',
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'مسیریابی',
+                    style: TextStyle(
+                      fontFamily: "YekanBakh",
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
               Gap(
                 MediaQuery.of(context).padding.bottom + 16,
               ),
@@ -555,9 +583,9 @@ class _HomeViewState extends State<HomeView> {
     database.setDynamic(
       key: 'location',
       value: {
-        'lat': mapController.camera.center.latitude,
-        'lon': mapController.camera.center.longitude,
-        'zoom': mapController.camera.zoom,
+        'lat': mapController.mapController.camera.center.latitude,
+        'lon': mapController.mapController.camera.center.longitude,
+        'zoom': mapController.mapController.camera.zoom,
       },
     );
 
@@ -781,7 +809,7 @@ class _HomeViewState extends State<HomeView> {
         if (snapshot.hasData) {
           final cacheStore = snapshot.data!;
           return FlutterMap(
-            mapController: mapController,
+            mapController: mapController.mapController,
             options: MapOptions(
               initialCenter: LatLng(32.4207423, 53.6830157),
               initialZoom: 5,
@@ -800,7 +828,6 @@ class _HomeViewState extends State<HomeView> {
             children: [
               TileLayer(
                 urlTemplate: 'https://map.doting.ir/osm_bright/{z}/{x}/{y}.png',
-                maxZoom: 15,
                 // disable rotation
                 tileProvider: CachedTileProvider(
                   // use the store for your CachedTileProvider instance
@@ -845,9 +872,9 @@ class _HomeViewState extends State<HomeView> {
                       height: 24,
                       child: GestureDetector(
                         onTap: () {
-                          mapController.move(
-                            LatLng(item.lat, item.lon),
-                            15,
+                          mapController.animateTo(
+                            dest: LatLng(item.lat, item.lon),
+                            zoom: 15,
                           );
 
                           onSelectPlace(place: item);
@@ -926,194 +953,273 @@ class _HomeViewState extends State<HomeView> {
       currentHeight = fullHeight;
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutBack,
-      clipBehavior: Clip.hardEdge,
-      height: currentHeight,
-      // min height 56
-      constraints: BoxConstraints(
-        minHeight: height,
-      ),
-
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.quaternarySystemFill,
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: NotificationListener(
-        onNotification: (ScrollNotification notification) {
-          // handle 3 times bottom height state
-          if (notification is ScrollUpdateNotification) {
-            // Detect scroll direction
-            bool isScrollingDown = notification.scrollDelta != null &&
-                notification.scrollDelta! > 0;
-            bool isAtTop = notification.metrics.pixels <= 10;
-
-            // Handle scrolling down
-            if (isScrollingDown && bottomSheetState < 2 && !isChangingState) {
-              isChangingState = true;
-              bottomSheetState = 2;
-              usingSearch = true;
-              setState(() {});
-              // Reset flag after short delay
-              Future.delayed(Duration(milliseconds: 1000), () {
-                isChangingState = false;
-                setState(() {});
-              });
-            }
-
-            // Handle scrolling up when at top
-            if (isAtTop) {
-              if (bottomSheetState == 2 && !isChangingState) {
-                scrollController.animateTo(
-                  0,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutBack,
-                );
-                isChangingState = true;
-                bottomSheetState = 1;
-                setState(() {});
-                // Reset flag after short delay
-                Future.delayed(Duration(milliseconds: 1000), () {
-                  isChangingState = false;
-                  setState(() {});
-                });
-              }
-            }
-          }
-
-          return true;
-        },
-        child: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          child: Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AnimatedOpacity(
+          opacity: bottomSheetState == 2 ? 0 : 1,
+          duration: Duration(milliseconds: 500),
+          curve: Curves.bounceIn,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () {
-                  setState(() {
-                    usingSearch = !usingSearch;
-                    bottomSheetState = usingSearch ? 1 : 0;
-                  });
-
-                  scrollController.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutBack,
-                  );
-                },
-                // on drag up (open) on drag down (close)
-                // Replace the empty onVerticalDragUpdate with:
-                onVerticalDragUpdate: (details) {
-                  // Dragging up
-                  if (details.delta.dy < 0) {
-                    if (bottomSheetState == 0) {
-                      setState(() {
-                        bottomSheetState = 1;
-                        usingSearch = true;
-                      });
-                    }
-                  }
-
-                  // Dragging down
-                  if (details.delta.dy > 0) {
-                    if (bottomSheetState == 1) {
-                      setState(() {
-                        bottomSheetState = 0;
-                        usingSearch = false;
-                      });
-                    } else if (bottomSheetState == 2) {
-                      scrollController.animateTo(
-                        0,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOutBack,
-                      );
-                      setState(() {
-                        bottomSheetState = 1;
-                      });
-                    }
-                  }
-                },
+                onTap: () => zoomIn(),
                 child: Container(
-                  padding: EdgeInsets.only(
-                    top: 12,
-                    left: 16,
-                    right: 16,
+                  margin: EdgeInsets.only(
+                    right: 12,
                     bottom: 12,
                   ),
+                  height: 38,
+                  width: 38,
                   decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: bottomSheetState != 0
-                            ? CupertinoColors.systemGrey6
-                            : CupertinoColors.white,
-                        width: bottomSheetState != 0 ? 1 : 0,
-                      ),
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: EdgeInsets.only(
-                          bottom: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.secondarySystemFill,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.quaternarySystemFill,
+                        blurRadius: 12,
+                        spreadRadius: 1,
                       ),
-                      search(),
                     ],
+                  ),
+                  child: Icon(
+                    CupertinoIcons.zoom_in,
+                    size: 18,
+                    color: CupertinoColors.inactiveGray,
                   ),
                 ),
               ),
-              AnimatedOpacity(
-                opacity: bottomSheetState != 0 ? 1 : 0,
-                duration: Duration(milliseconds: 300),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: bottomSheetState == 1
-                      ? 300
-                      : MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.bottom -
-                          210,
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: MediaQuery.of(context).padding.bottom + 32,
+              GestureDetector(
+                onTap: () => zoomOut(),
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: 2,
+                    bottom: 12,
+                  ),
+                  height: 38,
+                  width: 38,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Gap(12),
-                        if (places.isNotEmpty) locations(),
-                        if (ad != null) AdWidget(ad: ad!),
-                        if (citiesLatest.isNotEmpty) latestCities(),
-                        cities(),
-                        const Gap(12),
-                        links(),
-                      ],
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.quaternarySystemFill,
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    CupertinoIcons.zoom_out,
+                    size: 18,
+                    color: CupertinoColors.inactiveGray,
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutBack,
+          clipBehavior: Clip.hardEdge,
+          height: currentHeight,
+          // min height 56
+          constraints: BoxConstraints(
+            minHeight: height,
+          ),
+
+          decoration: BoxDecoration(
+            color: CupertinoColors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CupertinoColors.quaternarySystemFill,
+                blurRadius: 12,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: NotificationListener(
+            onNotification: (ScrollNotification notification) {
+              // handle 3 times bottom height state
+              if (notification is ScrollUpdateNotification) {
+                // Detect scroll direction
+                bool isScrollingDown = notification.scrollDelta != null &&
+                    notification.scrollDelta! > 0;
+                bool isAtTop = notification.metrics.pixels <= 10;
+
+                // Handle scrolling down
+                if (isScrollingDown &&
+                    bottomSheetState < 2 &&
+                    !isChangingState) {
+                  isChangingState = true;
+                  bottomSheetState = 2;
+                  usingSearch = true;
+                  setState(() {});
+                  // Reset flag after short delay
+                  Future.delayed(Duration(milliseconds: 1000), () {
+                    isChangingState = false;
+                    setState(() {});
+                  });
+                }
+
+                // Handle scrolling up when at top
+                if (isAtTop) {
+                  if (bottomSheetState == 2 && !isChangingState) {
+                    scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutBack,
+                    );
+                    isChangingState = true;
+                    bottomSheetState = 1;
+                    setState(() {});
+                    // Reset flag after short delay
+                    Future.delayed(Duration(milliseconds: 1000), () {
+                      isChangingState = false;
+                      setState(() {});
+                    });
+                  }
+                }
+              }
+
+              return true;
+            },
+            child: SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        usingSearch = !usingSearch;
+                        bottomSheetState = usingSearch ? 1 : 0;
+                      });
+
+                      scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                      );
+                    },
+                    // on drag up (open) on drag down (close)
+                    // Replace the empty onVerticalDragUpdate with:
+                    onVerticalDragUpdate: (details) {
+                      // Dragging up
+                      if (details.delta.dy < 0) {
+                        if (bottomSheetState == 0) {
+                          setState(() {
+                            bottomSheetState = 1;
+                            usingSearch = true;
+                          });
+                        }
+                      }
+
+                      // Dragging down
+                      if (details.delta.dy > 0) {
+                        if (bottomSheetState == 1) {
+                          setState(() {
+                            bottomSheetState = 0;
+                            usingSearch = false;
+                          });
+                        } else if (bottomSheetState == 2) {
+                          scrollController.animateTo(
+                            0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                          );
+                          setState(() {
+                            bottomSheetState = 1;
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: EdgeInsets.only(
+                        top: 12,
+                        left: 16,
+                        right: 16,
+                        bottom: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: bottomSheetState != 0
+                                ? CupertinoColors.systemGrey6
+                                : CupertinoColors.white,
+                            width: bottomSheetState != 0 ? 1 : 0,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 4,
+                            margin: EdgeInsets.only(
+                              bottom: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.secondarySystemFill,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          search(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  AnimatedOpacity(
+                    opacity: bottomSheetState != 0 ? 1 : 0,
+                    duration: Duration(milliseconds: 300),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: bottomSheetState == 1
+                          ? 300
+                          : MediaQuery.of(context).size.height -
+                              MediaQuery.of(context).padding.bottom -
+                              210,
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        padding: EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          bottom: MediaQuery.of(context).padding.bottom + 32,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Gap(12),
+                            if (places.isNotEmpty) locations(),
+                            if (ad != null) AdWidget(ad: ad!),
+                            if (citiesLatest.isNotEmpty) latestCities(),
+                            cities(),
+                            const Gap(12),
+                            links(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1145,9 +1251,9 @@ class _HomeViewState extends State<HomeView> {
               for (var item in places)
                 CupertinoListTile.notched(
                   onTap: () {
-                    mapController.move(
-                      LatLng(item.lat, item.lon),
-                      15,
+                    mapController.animateTo(
+                      dest: LatLng(item.lat, item.lon),
+                      zoom: 15,
                     );
 
                     onSelectPlace(place: item);
@@ -1167,24 +1273,31 @@ class _HomeViewState extends State<HomeView> {
                   title: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        item.name,
-                        style: TextStyle(
-                          color: CupertinoColors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width - 150,
+                        ),
+                        child: Text(
+                          item.name,
+                          softWrap: true,
+                          style: TextStyle(
+                            color: CupertinoColors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const Gap(4),
-                      Text(
-                        item.distance < 1
-                            ? '${(item.distance * 1000).toStringAsFixed(0)} متر'
-                            : '${item.distance.toStringAsFixed(1)} کیلومتر',
-                        style: TextStyle(
-                          color: CupertinoColors.inactiveGray,
-                          fontSize: 10,
+                      if (currentPosition != null)
+                        Text(
+                          item.distance < 1
+                              ? '${(item.distance * 1000).toStringAsFixed(0)} متر'
+                              : '${item.distance.toStringAsFixed(1)} کیلومتر',
+                          style: TextStyle(
+                            color: CupertinoColors.inactiveGray,
+                            fontSize: 10,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   subtitle: Text(
