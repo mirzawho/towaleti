@@ -127,7 +127,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             Text(
-              '0.1.0',
+              '2.0.0',
               style: TextStyle(
                 color: CupertinoColors.inactiveGray,
               ),
