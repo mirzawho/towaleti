@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_cache/flutter_map_cache.dart';
 import 'package:latlong2/latlong.dart';
@@ -829,10 +830,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               TileLayer(
                 urlTemplate: 'https://map.doting.ir/osm_bright/{z}/{x}/{y}.png',
                 // disable rotation
-                tileProvider: CachedTileProvider(
-                  // use the store for your CachedTileProvider instance
-                  store: cacheStore,
-                ),
+                tileProvider: kIsWeb
+                    ? null
+                    : CachedTileProvider(
+                        // use the store for your CachedTileProvider instance
+                        store: cacheStore,
+                      ),
               ),
               MarkerLayer(
                 markers: [
