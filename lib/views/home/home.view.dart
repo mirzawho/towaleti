@@ -3,23 +3,25 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_map_cache/flutter_map_cache.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:gap/gap.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:location/location.dart' show PermissionStatus;
+import 'package:share_plus/share_plus.dart';
+import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:towaleti/models/ad.model.dart';
 import 'package:towaleti/models/city.model.dart';
+import 'package:towaleti/models/location.model.dart';
 import 'package:towaleti/models/place.model.dart';
+import 'package:towaleti/shared/constants.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
-import 'package:towaleti/shared/platform/map_cacher.dart';
 import 'package:towaleti/shared/platform/location.dart';
-import 'package:location/location.dart' show PermissionStatus;
+import 'package:towaleti/shared/platform/map_cacher.dart';
 import 'package:towaleti/shared/services/database.dart';
 import 'package:towaleti/shared/services/http.dart';
 import 'package:towaleti/shared/widget/ad.widget.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:flutter_map_animations/flutter_map_animations.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -38,7 +40,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool usingGPSPermission = false;
   bool usingSearch = false;
   Timer? timerSearch;
+  Timer? timerQuery;
   List<PlaceModel> places = [];
+  List<LocationModel> locations = [];
   List<CityModel> citiesLatest = [];
   List<CityModel> citiesSorted = [];
   int bottomSheetState =
@@ -46,6 +50,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   LatLng? currentPosition;
   bool isChangingState = false;
   AdModel? ad;
+  String? city;
+  bool versionBadge = false;
+  String query = '';
+  bool quering = false;
 
   @override
   void initState() {
@@ -84,7 +92,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     showCupertinoModalPopup(
       context: context,
       builder: (context) => Container(
-        height: 310,
+        height: MediaQuery.of(context).padding.bottom + 400,
         width: double.infinity,
         padding: EdgeInsets.only(
           top: 12,
@@ -128,7 +136,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ),
             ),
             Text(
-              '2.0.0',
+              CONSTANTS.version,
               style: TextStyle(
                 color: CupertinoColors.inactiveGray,
               ),
@@ -265,7 +273,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   void initAd() async {
     try {
-      var result = await http.ad();
+      var zoom = mapController.mapController.camera.zoom;
+
+      var type = city == null || zoom < 14 ? "any" : "city";
+
+      if (ad != null && ad!.cities.isEmpty && type == "any") {
+        return;
+      }
+
+      if (ad != null && ad!.cities.contains(city) && type == "city") {
+        return;
+      }
+
+      var result = await http.ad(
+        type: city == null || zoom < 14 ? "any" : "city",
+        city: city,
+      );
 
       if (result['ok'] == true) {
         ad = AdModel.fromJson(
@@ -283,7 +306,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   void initHandshake() async {
     try {
-      await http.handshake();
+      var result = await http.handshake();
+
+      if (result['ok']) {
+        CONSTANTS.versionIsOld = result['data']['isUpdateAvailable'];
+        CONSTANTS.verionIsDeprecated = result['data']['isDeprecated'];
+        CONSTANTS.urlFeedback = result['data']['url_feedback'];
+        CONSTANTS.urlUpdate = result['data']['url_update'];
+
+        if (CONSTANTS.versionIsOld || CONSTANTS.verionIsDeprecated) {
+          versionBadge = true;
+        } else {
+          versionBadge = false;
+        }
+      }
     } catch (e) {
       //
     }
@@ -318,13 +354,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       zoom: city.zoom,
     );
 
-    searchOnLocation();
-    initCitiesLatest();
-
     setState(() {
+      this.city = city.name;
       bottomSheetState = 1;
       usingSearch = false;
     });
+
+    searchOnLocation();
+    initCitiesLatest();
+    initAd();
   }
 
   void searchOnLocation() {
@@ -358,17 +396,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           zoom: int.tryParse(location['zoom'].toString()) ?? 14,
         );
 
+        if (result['ok'] == true && result['address'] != null) {
+          String addressCity = result['address']['city'];
+
+          city = addressCity.replaceFirst('شهر', '').trim();
+
+          setState(() {});
+
+          initAd();
+        }
+
         if (result['ok'] == true && result['places'] != null) {
           places = [];
 
           for (var item in result['places']) {
             places.add(
               PlaceModel(
-                lat: item['data']['geometry']['lon'],
-                lon: item['data']['geometry']['lat'],
-                distance: double.parse(item['data']['distance'].toString()),
-                name: item['data']['name'],
-                address: item['data']['address'],
+                lat: item['geometry']['lon'],
+                lon: item['geometry']['lat'],
+                distance: double.parse(item['distance'].toString()),
+                name: item['name'],
+                address: item['address'],
               ),
             );
           }
@@ -593,6 +641,60 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     searchOnLocation();
   }
 
+  void searchByQuery() {
+    if (timerQuery != null) {
+      timerQuery!.cancel();
+    }
+
+    timerQuery = Timer(Duration(milliseconds: 300), () async {
+      try {
+        if (query.length <= 3) {
+          quering = false;
+          bottomSheetState = 1;
+          locations = [];
+          setState(() {});
+          return;
+        }
+
+        setState(() {
+          quering = true;
+        });
+
+        var result = await http.reverse(
+          address: query,
+        );
+
+        locations = [];
+        if (result['ok'] && result['locations'] != null) {
+          for (var item in result['locations']) {
+            locations.add(
+              LocationModel(
+                address: item['address'],
+                city: item['city'] ?? '',
+                state: item['state'] ?? '',
+                lat: item['coordinates']['lat'],
+                lon: item['coordinates']['lng'],
+              ),
+            );
+          }
+
+          bottomSheetState = 2;
+        }
+
+        quering = false;
+
+        setState(() {});
+      } catch (e) {
+        quering = false;
+
+        setState(() {});
+
+        print(e);
+        //
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -627,7 +729,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             ),
           ),
           Positioned(
-            top: MediaQuery.of(context).padding.top + 42,
+            top: defaultTargetPlatform == TargetPlatform.iOS
+                ? 42
+                : MediaQuery.of(context).padding.top + 42,
             left: 0,
             right: 0,
             child: header(),
@@ -646,11 +750,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   Widget links() {
     Widget link({
       required String title,
-      required String path,
+      String? path,
+      Function? onTap,
     }) {
       return GestureDetector(
         onTap: () {
-          Navigator.pushNamed(context, path);
+          if (path != null) {
+            Navigator.pushNamed(context, path);
+          }
+
+          if (onTap != null) {
+            onTap();
+          }
         },
         child: Container(
           height: 50,
@@ -697,6 +808,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             title: 'درباره ما',
             path: '/about',
           ),
+          if (CONSTANTS.urlFeedback != null &&
+              (CONSTANTS.flavor == "cafebazaar" || CONSTANTS.flavor == "myket"))
+            link(
+              title: 'ارسال نظر و پیشنهاد',
+              onTap: () {
+                launchUrl(Uri.parse(CONSTANTS.urlFeedback!));
+              },
+            ),
+          if (CONSTANTS.urlUpdate != null && CONSTANTS.versionIsOld)
+            link(
+              title: 'دریافت نسخه جدید',
+              onTap: () {
+                launchUrl(Uri.parse(CONSTANTS.urlUpdate!));
+              },
+            ),
         ],
       ),
     );
@@ -760,14 +886,35 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               children: [
                 GestureDetector(
                   onTap: () => openInfoBottomSheet(),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Icon(
-                      CupertinoIcons.info,
-                      size: 18,
-                      color: CupertinoColors.inactiveGray,
-                    ),
+                  child: Stack(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Icon(
+                          CupertinoIcons.info,
+                          size: 18,
+                          color: CupertinoColors.inactiveGray,
+                        ),
+                      ),
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutBack,
+                          opacity: versionBadge ? 1 : 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.systemRed,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // divider with a container line
@@ -1206,7 +1353,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Gap(12),
-                            if (places.isNotEmpty) locations(),
+                            if (places.isNotEmpty) listPlaces(),
+                            if (locations.isNotEmpty) listLocations(),
                             if (ad != null) AdWidget(ad: ad!),
                             if (citiesLatest.isNotEmpty) latestCities(),
                             cities(),
@@ -1226,7 +1374,79 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  Widget locations() {
+  Widget listLocations() {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: CupertinoColors.tertiarySystemFill.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        children: [
+          for (var item in locations)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  bottomSheetState = 1;
+                });
+
+                // move to location
+                mapController.animateTo(
+                  dest: LatLng(item.lat, item.lon),
+                  zoom: 15,
+                );
+
+                Timer(Duration(milliseconds: 300), () {
+                  onMapMove();
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(100),
+                        color: CupertinoColors.activeBlue.withOpacity(0.1),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          CupertinoIcons.location_solid,
+                          size: 14,
+                          color: CupertinoColors.activeBlue,
+                        ),
+                      ),
+                    ),
+                    const Gap(12),
+                    SizedBox(
+                      width: MediaQuery.of(context).size.width - 110,
+                      child: Text(
+                        item.address,
+                        softWrap: true,
+                        style: TextStyle(
+                          color: CupertinoColors.black,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget listPlaces() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1518,40 +1738,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   Widget search() {
-    return Container(
-      height: 40,
-      padding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        color: CupertinoColors.secondarySystemFill,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.quaternarySystemFill,
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            CupertinoIcons.search,
-            size: 20,
-            color: CupertinoColors.systemGrey,
-          ),
-          const Gap(8),
-          Expanded(
-            child: Text(
-              'جستجو',
-              style: TextStyle(
-                color: CupertinoColors.systemGrey,
-              ),
+    return CupertinoSearchTextField(
+      onChanged: (value) {
+        setState(() {
+          query = value;
+        });
+      },
+      onSubmitted: (value) {
+        searchByQuery();
+      },
+      onTap: () {
+        setState(() {
+          bottomSheetState = 0;
+        });
+      },
+      placeholder: 'جستجو کنید',
+      prefixIcon: quering
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CupertinoActivityIndicator(),
+            )
+          : Icon(
+              CupertinoIcons.search,
+              size: 20,
+              color: CupertinoColors.inactiveGray,
             ),
-          ),
-        ],
+      style: TextStyle(
+        color: CupertinoColors.black,
       ),
     );
   }

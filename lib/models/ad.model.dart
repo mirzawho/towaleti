@@ -5,6 +5,7 @@ class AdModel {
   final String subtitle;
   final String button;
   final String url;
+  final List<String> cities;
 
   AdModel({
     required this.background,
@@ -13,6 +14,7 @@ class AdModel {
     required this.subtitle,
     required this.button,
     required this.url,
+    required this.cities,
   });
 
   factory AdModel.fromJson(dynamic json) {
@@ -23,6 +25,7 @@ class AdModel {
       subtitle: json['subtitle'],
       button: json['button'],
       url: json['url'],
+      cities: List<String>.from(json['citirs'] ?? []),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:towaleti/shared/constants.dart';
 
 class HttpService {
   final Dio dio = Dio(
@@ -13,7 +14,14 @@ class HttpService {
   // handshake
   Future<dynamic> handshake() async {
     final response = await dio.get(
-      'https://towaleti.sayheymirza.workers.dev/handshake',
+      'https://mapine.doting.ir/v1/call/app.handshake',
+      options: Options(
+        headers: {
+          'x-app': CONSTANTS.id,
+          'x-flavor': CONSTANTS.flavor,
+          'x-version': CONSTANTS.version,
+        },
+      ),
     );
 
     if (response.statusCode == 200) {
@@ -29,12 +37,20 @@ class HttpService {
     required int zoom,
   }) async {
     final response = await dio.get(
-      'https://towaleti.sayheymirza.workers.dev/search',
+      'https://mapine.doting.ir/v1/call/place.find',
       queryParameters: {
         'lat': lat,
         'lon': lon,
         'zoom': zoom,
+        'category': 'public-bathroom'
       },
+      options: Options(
+        headers: {
+          'x-app': CONSTANTS.id,
+          'x-flavor': CONSTANTS.flavor,
+          'x-version': CONSTANTS.version,
+        },
+      ),
     );
 
     if (response.statusCode == 200) {
@@ -44,9 +60,46 @@ class HttpService {
     }
   }
 
-  Future<dynamic> ad() async {
+  Future<dynamic> reverse({required String address, String? city}) async {
+    final response = await dio.post(
+      'https://mapine.doting.ir/v1/call/place.search',
+      data: {
+        'address': address,
+        'city': city,
+      },
+      options: Options(
+        headers: {
+          'x-app': CONSTANTS.id,
+          'x-flavor': CONSTANTS.flavor,
+          'x-version': CONSTANTS.version,
+        },
+      ),
+    );
+
+    if (response.statusCode == 200) {
+      return response.data;
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+
+  Future<dynamic> ad({
+    String type = "any",
+    String? city,
+  }) async {
     final response = await dio.get(
-      'https://towaleti.sayheymirza.workers.dev/ad',
+      'https://mapine.doting.ir/v1/call/ad.one',
+      queryParameters: {
+        'type': type,
+        'city': city,
+      },
+      options: Options(
+        headers: {
+          'x-app': CONSTANTS.id,
+          'x-flavor': CONSTANTS.flavor,
+          'x-version': CONSTANTS.version,
+        },
+      ),
     );
 
     if (response.statusCode == 200) {

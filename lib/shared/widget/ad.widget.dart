@@ -102,7 +102,7 @@ class AdWidget extends StatelessWidget {
                           ),
                           const Gap(12),
                           SizedBox(
-                            width: MediaQuery.of(context).size.width - 160,
+                            width: MediaQuery.of(context).size.width - 200,
                             child: Text(
                               ad.subtitle,
                               overflow: TextOverflow.ellipsis,

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:towaleti/shared/theme.dart';
 import 'package:towaleti/views/home/home.view.dart';
@@ -14,6 +15,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // transparent status and navigation bar
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: CupertinoColors.transparent,
+      systemNavigationBarColor: CupertinoColors.white,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+
     return CupertinoApp(
       theme: themeData,
       localizationsDelegates: [
