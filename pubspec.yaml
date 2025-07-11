@@ -1,7 +1,7 @@
 name: towaleti
 description: "A new Flutter project."
 publish_to: 'none'
-version: 2.2.0+220
+version: 2.2.2+222
 
 environment:
   sdk: ^3.6.1
@@ -25,6 +25,7 @@ dependencies:
   intl: any
   latlong2: ^0.9.1
   location: ^8.0.0
+  package_info_plus: ^8.3.0
   path_provider: ^2.1.5
   share_plus: ^11.0.0
   shared_preferences: ^2.5.3
@@ -39,6 +40,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - lib/assets/logo.png
+    - lib/assets/hello.png
 
   fonts:
     - family: YekanBakh

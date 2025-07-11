@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "cafebazaar",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib.cafebazaar.dart",
+      "args": ["--target", "lib/flavors/cafebazaar.dart"]
+    },
+    {
+      "name": "myket",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib.myket.dart",
+      "args": ["--target", "lib/flavors/myket.dart"]
+    },
+    {
+      "name": "web",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib.web.dart",
+      "args": ["--target", "lib/flavors/web.dart"]
+    }
+  ],
+  "compounds": []
+}

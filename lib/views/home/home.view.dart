@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:flutter_map_cache/flutter_map_cache.dart';
@@ -20,6 +21,7 @@ import 'package:towaleti/shared/platform/location.dart';
 import 'package:towaleti/shared/platform/map_cacher.dart';
 import 'package:towaleti/shared/services/database.dart';
 import 'package:towaleti/shared/services/http.dart';
+import 'package:towaleti/shared/vibration.dart';
 import 'package:towaleti/shared/widget/ad.widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -41,6 +43,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool usingSearch = false;
   Timer? timerSearch;
   Timer? timerQuery;
+  Timer? timerMove;
   List<PlaceModel> places = [];
   List<LocationModel> locations = [];
   List<CityModel> citiesLatest = [];
@@ -54,10 +57,19 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   bool versionBadge = false;
   String query = '';
   bool quering = false;
+  bool nearesting = false;
 
   @override
   void initState() {
     super.initState();
+
+    // transparent status and navigation bar
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: CupertinoColors.transparent,
+      systemNavigationBarColor: CupertinoColors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ));
 
     getGPSPermission();
     initCitiesLatest();
@@ -199,10 +211,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   void flyToMyLocation() async {
-    if (!hasGPSPermission) {
-      return;
-    }
-
     try {
       usingGPSPermission = true;
       setState(() {});
@@ -305,27 +313,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   void initHandshake() async {
-    try {
-      var result = await http.handshake();
-
-      if (result['ok']) {
-        CONSTANTS.versionIsOld = result['data']['isUpdateAvailable'];
-        CONSTANTS.verionIsDeprecated = result['data']['isDeprecated'];
-        CONSTANTS.urlFeedback = result['data']['url_feedback'];
-        CONSTANTS.urlUpdate = result['data']['url_update'];
-
-        if (CONSTANTS.versionIsOld || CONSTANTS.verionIsDeprecated) {
-          versionBadge = true;
-        } else {
-          versionBadge = false;
-        }
-      }
-    } catch (e) {
-      //
+    if (CONSTANTS.versionIsOld || CONSTANTS.verionIsDeprecated) {
+      versionBadge = true;
+    } else {
+      versionBadge = false;
     }
   }
 
   void onSelectCity({required CityModel city}) async {
+    vibrate();
+
     var values = await database.getArray(key: 'city_latest');
 
     // check city exists to values, remove and insert to top
@@ -365,10 +362,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     initAd();
   }
 
-  void searchOnLocation() {
+  Future<List<PlaceModel>> searchOnLocation({
+    bool fly = true,
+    bool force = false,
+    LatLng? position,
+  }) {
+    var c = Completer<List<PlaceModel>>();
+
     if (timerSearch != null) {
+      c.complete([]);
       timerSearch!.cancel();
     }
+
     timerSearch = Timer(const Duration(milliseconds: 500), () async {
       var location = await database.getMap(key: 'location');
 
@@ -385,14 +390,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           return;
         }
 
-        mapController.animateTo(
-          dest: LatLng(location['lat'], location['lon']),
-          zoom: zoom,
-        );
+        if (fly) {
+          mapController.animateTo(
+            dest: LatLng(location['lat'], location['lon']),
+            zoom: zoom,
+          );
+        }
 
         var result = await http.search(
-          lat: location['lat'],
-          lon: location['lon'],
+          lat: position != null ? position.latitude : location['lat'],
+          lon: position != null ? position.longitude : location['lon'],
           zoom: int.tryParse(location['zoom'].toString()) ?? 14,
         );
 
@@ -424,6 +431,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           // sort places with distance
           places.sort((a, b) => a.distance.compareTo(b.distance));
 
+          if (!c.isCompleted) {
+            c.complete(places);
+          }
+
           bottomSheetState = 1;
 
           setState(() {});
@@ -431,11 +442,22 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           places = [];
           setState(() {});
         }
+
+        if (!c.isCompleted) {
+          c.complete([]);
+        }
       }
     });
+
+    if (force) {
+      timerSearch = null;
+    }
+
+    return c.future;
   }
 
   void onSelectPlace({required PlaceModel place}) {
+    vibrate();
     // open bottom sheet
     showCupertinoModalPopup(
       context: context,
@@ -555,7 +577,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (currentPosition != null)
+                    if (currentPosition != null && place.distance != 0)
                       Text(
                         'فاصله',
                         style: TextStyle(
@@ -563,7 +585,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           fontSize: 10,
                         ),
                       ),
-                    if (currentPosition != null)
+                    if (currentPosition != null && place.distance != 0)
                       Text(
                         place.distance < 1
                             ? '${(place.distance * 1000).toStringAsFixed(0)} متر'
@@ -573,7 +595,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                           fontSize: 14,
                         ),
                       ),
-                    if (currentPosition != null) const Gap(12),
+                    if (currentPosition != null && place.distance != 0)
+                      const Gap(12),
                     Text(
                       'آدرس',
                       style: TextStyle(
@@ -628,17 +651,26 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   void onMapMove() {
-    // set latest location
-    database.setDynamic(
-      key: 'location',
-      value: {
-        'lat': mapController.mapController.camera.center.latitude,
-        'lon': mapController.mapController.camera.center.longitude,
-        'zoom': mapController.mapController.camera.zoom,
-      },
-    );
+    if (timerMove != null) {
+      timerMove!.cancel();
+    }
 
-    searchOnLocation();
+    timerMove = Timer(Duration(milliseconds: 300), () {
+      if (nearesting) return;
+      print(nearesting);
+
+      // set latest location
+      database.setDynamic(
+        key: 'location',
+        value: {
+          'lat': mapController.mapController.camera.center.latitude,
+          'lon': mapController.mapController.camera.center.longitude,
+          'zoom': mapController.mapController.camera.zoom,
+        },
+      );
+
+      searchOnLocation(fly: false);
+    });
   }
 
   void searchByQuery() {
@@ -693,6 +725,66 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         //
       }
     });
+  }
+
+  void findNearestLocation() async {
+    try {
+      setState(() {
+        nearesting = true;
+      });
+      // 1. access to location, 2. search it
+      var permission = await getGPSPermission();
+
+      if (permission == PermissionStatus.granted ||
+          permission == PermissionStatus.grantedLimited) {
+        var position = await location.getLocation();
+
+        currentPosition = LatLng(position.latitude, position.longitude);
+
+        database.setDynamic(
+          key: 'location',
+          value: {
+            'lat': position.latitude,
+            'lon': position.longitude,
+            'zoom': 15,
+          },
+        );
+
+        timerSearch = null;
+
+        var places = await searchOnLocation(
+          fly: false,
+          position: currentPosition,
+        );
+
+        setState(() {
+          nearesting = false;
+        });
+
+        // fly to first one
+        Timer(Duration(milliseconds: 500), () {
+          if (places.isNotEmpty) {
+            var first = places.first;
+            mapController.animateTo(
+              dest: LatLng(first.lat, first.lon),
+              zoom: 15,
+            );
+
+            Timer(Duration(milliseconds: 500), () {
+              onSelectPlace(place: first);
+            });
+          }
+        });
+      }
+      setState(() {
+        nearesting = false;
+      });
+    } catch (e) {
+      //
+      setState(() {
+        nearesting = false;
+      });
+    }
   }
 
   @override
@@ -756,10 +848,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       return GestureDetector(
         onTap: () {
           if (path != null) {
+            vibrate();
             Navigator.pushNamed(context, path);
           }
 
           if (onTap != null) {
+            vibrate();
             onTap();
           }
         },
@@ -841,7 +935,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             opacity: hasGPSPermission ? 0 : 1,
             child: Center(
               child: GestureDetector(
-                onTap: hasGPSPermission ? null : () => getGPSPermission(),
+                onTap: hasGPSPermission
+                    ? null
+                    : () {
+                        vibrate();
+                        getGPSPermission();
+                      },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -885,7 +984,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             child: Column(
               children: [
                 GestureDetector(
-                  onTap: () => openInfoBottomSheet(),
+                  onTap: () {
+                    vibrate();
+                    openInfoBottomSheet();
+                  },
                   child: Stack(
                     children: [
                       SizedBox(
@@ -927,7 +1029,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                   color: CupertinoColors.secondarySystemFill,
                 ),
                 GestureDetector(
-                  onTap: () => flyToMyLocation(),
+                  onTap: () {
+                    vibrate();
+                    flyToMyLocation();
+                  },
                   child: SizedBox(
                     width: 24,
                     height: 24,
@@ -968,14 +1073,12 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 searchOnLocation();
               },
               onPositionChanged: (position, hasGesture) {
-                if (hasGesture) {
-                  onMapMove();
-                }
+                onMapMove();
               },
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://map.doting.ir/osm_bright/{z}/{x}/{y}.png',
+                urlTemplate: CONSTANTS.urlMap,
                 // disable rotation
                 tileProvider: kIsWeb
                     ? null
@@ -1116,7 +1219,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () => zoomIn(),
+                onTap: () {
+                  vibrate();
+                  zoomIn();
+                },
                 child: Container(
                   margin: EdgeInsets.only(
                     right: 12,
@@ -1146,7 +1252,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
               ),
               GestureDetector(
-                onTap: () => zoomOut(),
+                onTap: () {
+                  vibrate();
+                  zoomOut();
+                },
                 child: Container(
                   margin: EdgeInsets.only(
                     right: 2,
@@ -1172,6 +1281,43 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     CupertinoIcons.zoom_out,
                     size: 18,
                     color: CupertinoColors.inactiveGray,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: nearesting
+                    ? null
+                    : () {
+                        vibrate();
+                        findNearestLocation();
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: EdgeInsets.only(
+                    left: 12,
+                    bottom: 12,
+                  ),
+                  height: 38,
+                  width: nearesting ? 110 : 130,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.white,
+                    borderRadius: BorderRadius.circular(50),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.quaternarySystemFill,
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      nearesting ? 'در حال یافتن' : 'نزدیک ترین توالت',
+                      style: TextStyle(
+                        color: CupertinoColors.inactiveGray,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1511,7 +1657,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                         ),
                       ),
                       const Gap(4),
-                      if (currentPosition != null)
+                      if (currentPosition != null && item.distance != 0)
                         Text(
                           item.distance < 1
                               ? '${(item.distance * 1000).toStringAsFixed(0)} متر'

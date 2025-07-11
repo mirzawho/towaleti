@@ -5,6 +5,7 @@ import 'package:towaleti/shared/theme.dart';
 import 'package:towaleti/views/home/home.view.dart';
 import 'package:towaleti/views/offline/offline.view.dart';
 import 'package:towaleti/views/page/page.view.dart';
+import 'package:towaleti/views/splash/splash.view.dart';
 
 void main() {
   runApp(const MainApp());
@@ -18,8 +19,9 @@ class MainApp extends StatelessWidget {
     // transparent status and navigation bar
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: CupertinoColors.transparent,
-      systemNavigationBarColor: CupertinoColors.white,
+      systemNavigationBarColor: CupertinoColors.transparent,
       statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ));
 
     return CupertinoApp(
@@ -35,7 +37,7 @@ class MainApp extends StatelessWidget {
       locale: const Locale('fa'),
       debugShowCheckedModeBanner: false,
       routes: {
-        '/': (_) => HomeView(),
+        '/': (_) => SplashView(),
         '/offline': (_) => OfflineView(),
         '/about': (_) => const DynamicPageView(slug: 'about'),
         '/terms': (_) => const DynamicPageView(slug: 'terms'),

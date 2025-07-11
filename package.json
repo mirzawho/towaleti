@@ -1,0 +1,13 @@
+{
+  "name": "towaleti",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/sayheymirza/towaleti.git",
+  "author": "Mirza <sayheymirza@gamil.com>",
+  "license": "MIT",
+  "scripts": {
+    "build:cafebazaar": "flutter build aab --target lib/flavors/cafebazaar.dart  --verbose",
+    "build:myket": "flutter build apk --target lib/flavors/myket.dart  --split-per-abi --verbose",
+    "sign": "java -jar bundlesigner.jar genbin  -v --bundle build/app/outputs/bundle/release/app-release.aab --bin build/app/outputs/bundle/release/  --v2-signing-enabled true --v3-signing-enabled false --ks android/app/mirza-sign.jks" 
+  }
+}
