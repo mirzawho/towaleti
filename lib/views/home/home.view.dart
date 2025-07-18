@@ -71,11 +71,27 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       systemNavigationBarIconBrightness: Brightness.dark,
     ));
 
+    initLatestLocation();
     getGPSPermission();
     initCitiesLatest();
     initCitiesSorted();
-    initAd();
     initHandshake();
+    initAd();
+  }
+
+  void initLatestLocation() async {
+    var location = await database.getMap(key: 'location');
+
+    if (location != null) {
+      Timer(Duration(milliseconds: 300), () {
+        mapController.animateTo(
+          dest: LatLng(location['lat'], location['lon']),
+          zoom: location['zoom'] == null
+              ? null
+              : double.parse(location['zoom'].toString()),
+        );
+      });
+    }
   }
 
   void zoomIn() {
@@ -370,8 +386,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     var c = Completer<List<PlaceModel>>();
 
     if (timerSearch != null) {
-      c.complete([]);
       timerSearch!.cancel();
+      c.complete([]);
     }
 
     timerSearch = Timer(const Duration(milliseconds: 500), () async {
@@ -728,6 +744,13 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
   }
 
   void findNearestLocation() async {
+    Timer(Duration(seconds: 8), () {
+      setState(() {
+        vibrate();
+        nearesting = false;
+      });
+    });
+
     try {
       setState(() {
         nearesting = true;
@@ -775,11 +798,16 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             });
           }
         });
+      } else {
+        setState(() {
+          nearesting = false;
+        });
       }
       setState(() {
         nearesting = false;
       });
     } catch (e) {
+      print(e);
       //
       setState(() {
         nearesting = false;
@@ -1299,7 +1327,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                     bottom: 12,
                   ),
                   height: 38,
-                  width: nearesting ? 110 : 130,
+                  width: nearesting ? 110 : 140,
                   decoration: BoxDecoration(
                     color: CupertinoColors.white,
                     borderRadius: BorderRadius.circular(50),
