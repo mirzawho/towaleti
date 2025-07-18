@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,6 +13,7 @@ import 'package:towaleti/shared/services/access.service.dart';
 import 'package:towaleti/shared/services/database.dart';
 import 'package:towaleti/shared/services/http.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
+import 'package:towaleti/shared/vibration.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -23,6 +26,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   DatabaseService databaseService = DatabaseService();
   AccessService accessService = AccessService();
   HttpService http = HttpService();
+  DatabaseService database = DatabaseService();
   late AnimatedMapController mapController = AnimatedMapController(vsync: this);
   int step = 0;
   int substep = 0;
@@ -65,7 +69,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
     // transparent status and navigation bar
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: CupertinoColors.white,
+      statusBarColor: CupertinoColors.transparent,
       systemNavigationBarColor: CupertinoColors.white,
       statusBarIconBrightness: Brightness.dark,
       systemNavigationBarIconBrightness: Brightness.dark,
@@ -82,6 +86,42 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         step = 1;
         setState(() {});
       }
+    });
+  }
+
+  void onSelectCity({required CityModel city}) async {
+    vibrate();
+
+    var values = await database.getArray(key: 'city_latest');
+
+    // check city exists to values, remove and insert to top
+    if (values.contains(city.name)) {
+      values.remove(city.name);
+    }
+
+    values.insert(0, city.name);
+
+    if (values.length > 5) {
+      values = values.getRange(0, 4).toList();
+    }
+
+    database.setDynamic(key: 'city_latest', value: values);
+    database.setDynamic(
+      key: 'location',
+      value: {
+        'lat': city.lat,
+        'lon': city.lon,
+        'zoom': city.zoom,
+      },
+    );
+
+    mapController.animateTo(
+      dest: LatLng(city.lat, city.lon),
+      zoom: city.zoom,
+    );
+
+    setState(() {
+      selectedCityName = city.name;
     });
   }
 
@@ -107,14 +147,88 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     }
   }
 
+  void flyTo(LatLng latLng, {double zoom = 16}) {
+    mapController.animateTo(
+      dest: latLng,
+      zoom: zoom,
+    );
+  }
+
   void nextStep() {
     if (step == 3) {
       databaseService.set(key: 'splashed', value: 'true');
       Navigator.pushReplacementNamed(context, '/home');
     } else {
       step += 1;
+      if (step == 2) {
+        startSubstep();
+      }
       setState(() {});
     }
+  }
+
+  void startSubstep() {
+    List<CityModel> list = [
+      CityModel(
+        name: 'ایران',
+        lat: 32.4207423,
+        lon: 53.6830157,
+        zoom: 5,
+      ),
+      CityModel(
+        name: 'تهران',
+        lat: 35.6892,
+        lon: 51.3890,
+        zoom: 10,
+      ),
+      CityModel(
+        name: 'قزوین',
+        lat: 36.2797,
+        lon: 50.0049,
+        zoom: 12,
+      ),
+      CityModel(
+        name: 'مشهد',
+        lat: 36.2605,
+        lon: 59.6168,
+        zoom: 12,
+      ),
+      CityModel(
+        name: 'اصفهان',
+        lat: 32.6539,
+        lon: 51.6660,
+        zoom: 12,
+      ),
+      CityModel(
+        name: 'شیراز',
+        lat: 29.5917,
+        lon: 52.5836,
+        zoom: 12,
+      ),
+      CityModel(
+        name: 'تبریز',
+        lat: 38.0962,
+        lon: 46.2738,
+        zoom: 13,
+      ),
+    ];
+
+    Timer.periodic(Duration(seconds: 5), (timer) {
+      if (mounted) {
+        setState(() {
+          substep = substep + 1 == 7 ? 0 : substep + 1;
+          flyTo(
+            LatLng(
+              list[substep].lat,
+              list[substep].lon,
+            ),
+            zoom: list[substep].zoom,
+          );
+        });
+      } else {
+        timer.cancel();
+      }
+    });
   }
 
   @override
@@ -187,8 +301,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             for (var item in citiesSorted)
               GestureDetector(
                 onTap: () {
-                  selectedCityName = item.name;
-                  setState(() {});
+                  onSelectCity(city: item);
                 },
                 child: Container(
                   width: double.infinity,
@@ -283,7 +396,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                 ),
                 EdgeBlur(
                   type: EdgeType.bottomEdge,
-                  size: 500,
+                  size: 400,
                   sigma: 280,
                   tileMode: TileMode.mirror,
                   tintColor: CupertinoColors.white,
@@ -327,11 +440,23 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                       fontFamily: "YekanBakh",
                     ),
                   ),
-                  Text(
-                    'در هر موقعیتی در نقشه یا شهری که انتخاب کرده باشید. تعدادی توالت و دستشویی های اطراف شما رو بهتون نشون میدیم. با کلیک و ضربه زدن روی اون ها اطلاعاتش رو می تونید داشته باشید و با مسیریابی از جایی که هستید تا توالتی که انتخاب کردید مسیر رو بهتون میدیم.',
-                    style: TextStyle(
-                      color: CupertinoColors.black.withOpacity(0.7),
-                      fontFamily: "YekanBakh",
+                  SizedBox(
+                    height: 48,
+                    child: Text(
+                      // 'در هر موقعیتی در نقشه یا شهری که انتخاب کرده باشید. تعدادی توالت و دستشویی های اطراف شما رو بهتون نشون میدیم. با کلیک و ضربه زدن روی اون ها اطلاعاتش رو می تونید داشته باشید و با مسیریابی از جایی که هستید تا توالتی که انتخاب کردید مسیر رو بهتون میدیم.',
+                      [
+                        '۱. موقعیت مکانی که هستید رو انتخاب می کنید.',
+                        '۲. می تونید موقعیت مکانیتون رو به ما ارسال کنید یا دکمه نزدیک ترین توالت رو بزنید.',
+                        '۳. حتی می تونید روی نقشه بگردید و توالت های اطراف رو پیدا کنید.',
+                        '۴. آدرس جایی که می خواهید رو بنویسید و توالت های اون جا رو پیدا کنید.',
+                        '۵. شهری که می خواهید رو انتخاب کنید و توالت های شهر رو ببینید.',
+                        '۶. حالا ما بر اساس موقعیتی که بهمون دادید بهتون توالت های اونجا رو بهتون میدیم.',
+                        '۷. شما هم هر توالتی رو خواستید رو انتخاب کنید و دکمه مسیریابی رو بزنید یا با یکی به اشتراک بذارید.'
+                      ][substep],
+                      style: TextStyle(
+                        color: CupertinoColors.black.withOpacity(0.7),
+                        fontFamily: "YekanBakh",
+                      ),
                     ),
                   ),
                   const Gap(100),
