@@ -6,13 +6,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_animations/flutter_map_animations.dart';
 import 'package:gap/gap.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:towaleti/models/city.model.dart';
 import 'package:towaleti/shared/constants.dart';
 import 'package:towaleti/shared/database/cities.database.dart';
-import 'package:towaleti/shared/services/access.service.dart';
 import 'package:towaleti/shared/services/database.dart';
 import 'package:towaleti/shared/services/http.dart';
-import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:towaleti/shared/vibration.dart';
 
 class SplashView extends StatefulWidget {
@@ -24,7 +23,6 @@ class SplashView extends StatefulWidget {
 
 class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   DatabaseService databaseService = DatabaseService();
-  AccessService accessService = AccessService();
   HttpService http = HttpService();
   DatabaseService database = DatabaseService();
   late AnimatedMapController mapController = AnimatedMapController(vsync: this);
@@ -74,10 +72,6 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       statusBarIconBrightness: Brightness.dark,
       systemNavigationBarIconBrightness: Brightness.dark,
     ));
-
-    accessService.generatePackageInfo().then((package) {
-      CONSTANTS.version = package.version;
-    });
 
     databaseService.get(key: 'splashed').then((value) {
       if (value != null) {
