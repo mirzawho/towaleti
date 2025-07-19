@@ -21,6 +21,13 @@
       "type": "dart",
       "program": "lib.web.dart",
       "args": ["--target", "lib/flavors/web.dart"]
+    },
+    {
+      "name": "sibapp",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib.sibapp.dart",
+      "args": ["--target", "lib/flavors/sibapp.dart"]
     }
   ],
   "compounds": []
