@@ -83,13 +83,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     var location = await database.getMap(key: 'location');
 
     if (location != null) {
-      Timer(Duration(milliseconds: 300), () {
-        mapController.animateTo(
-          dest: LatLng(location['lat'], location['lon']),
-          zoom: location['zoom'] == null
-              ? null
-              : double.parse(location['zoom'].toString()),
-        );
+      Timer(Duration(milliseconds: 500), () {
+        if (mounted) {
+          mapController.animateTo(
+            dest: LatLng(location['lat'], location['lon']),
+            zoom: location['zoom'] == null
+                ? null
+                : double.parse(location['zoom'].toString()),
+          );
+        }
       });
     }
   }
