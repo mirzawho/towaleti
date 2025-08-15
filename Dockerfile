@@ -9,7 +9,7 @@ RUN apt-get clean
 
 ENV DEBIAN_FRONTEND=dialog
 # download Flutter SDK from Flutter Github repo
-RUN git clone -b 3.27.3 https://github.com/flutter/flutter.git /usr/local/flutter
+RUN git clone -b 3.32.8 https://github.com/flutter/flutter.git /usr/local/flutter
 
 # Set flutter environment path
 ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:${PATH}"
