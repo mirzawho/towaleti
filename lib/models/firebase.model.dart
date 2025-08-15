@@ -1,0 +1,7 @@
+enum FIREBASE_EVENT_TYPE {
+  APP_OPEN,
+  LOGIN,
+  LOGOUT,
+  SHARE,
+  COMMENT,
+}

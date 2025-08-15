@@ -8,4 +8,9 @@ class CONSTANTS {
   static String? urlUpdate;
   static String urlMap =
       'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=fa';
+  static String urlPlaceShare =
+      'https://www.google.com/maps/search/?api=1&query=LAT,LON';
+  static String? urlShare;
+  static String? urlFormAd;
+  static String? urlFormPlace;
 }

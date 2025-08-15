@@ -12,4 +12,24 @@ class PlaceModel {
     required this.name,
     required this.address,
   });
+
+  factory PlaceModel.fromJson(dynamic value) {
+    return PlaceModel(
+      lat: value['lat'],
+      lon: value['lon'],
+      distance: 0,
+      name: value['name'],
+      address: value['address'],
+    );
+  }
+
+  toJson() {
+    return {
+      'lat': lat,
+      'lon': lon,
+      'distance': distance,
+      'name': name,
+      'address': address,
+    };
+  }
 }

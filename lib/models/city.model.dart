@@ -11,4 +11,13 @@ class CityModel {
     required this.lon,
     this.zoom = 14.0,
   });
+
+  toJson() {
+    return {
+      'name': name,
+      'lat': lat,
+      'lon': lon,
+      'zoom': zoom,
+    };
+  }
 }

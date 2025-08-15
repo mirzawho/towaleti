@@ -1,8 +1,11 @@
-import 'package:universal_html/html.dart' as html;
-import 'package:location/location.dart' as location;
 import 'package:latlong2/latlong.dart';
+import 'package:location/location.dart' as location;
+import 'package:universal_html/html.dart' as html;
 
 class Location {
+  Future<void> openPermission() async {}
+  Future<void> openSettings() async {}
+
   // check location permission
   Future<location.PermissionStatus> getPermission() async {
     html.PermissionStatus? status =

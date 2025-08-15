@@ -1,10 +1,19 @@
 import 'dart:async';
 
-import 'package:location/location.dart' as location;
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:location/location.dart' as location;
 
 class Location {
   final _instance = location.Location();
+
+  Future<void> openPermission() async {
+    Geolocator.openAppSettings();
+  }
+
+  Future<void> openSettings() async {
+    Geolocator.openLocationSettings();
+  }
 
   // check location permission
   Future<location.PermissionStatus> getPermission() {
@@ -22,7 +31,6 @@ class Location {
 
     var timer = Timer(Duration(seconds: 5), () {
       if (!c.isCompleted) {
-        print('timeout');
         c.complete(LatLng(0, 0));
       }
     });

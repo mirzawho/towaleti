@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "809239365809",
+    "project_id": "mapine-project",
+    "storage_bucket": "mapine-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809239365809:android:860c099efacdce49a3fa90",
+        "android_client_info": {
+          "package_name": "ir.khodmirza.towaleti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwEb2RhD0jwjAdnZV3COgAt9t7OrLcgSc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
