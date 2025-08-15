@@ -31,7 +31,7 @@ RUN flutter pub get --verbose
 # RUN flutter pub outdated
 # RUN flutter pub upgrade --major-versions
 
-RUN flutter build web --verbose
+RUN flutter build web --target lib/flavors/web.dart
 
 # Record the exposed port
 EXPOSE 9000
