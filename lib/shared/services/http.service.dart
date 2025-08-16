@@ -29,7 +29,7 @@ class HttpService extends GetxService {
 
   Future<dynamic> request({
     required String path,
-    String? endpoint = "https://proxy.doting.ir",
+    String? endpoint = "https://mapine.doting.ir",
     String method = "GET",
     Map<String, dynamic>? data,
     Dio.CancelToken? cancelToken,
