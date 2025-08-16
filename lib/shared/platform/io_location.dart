@@ -26,7 +26,7 @@ class Location {
   }
 
   // current location
-  Future<LatLng> getLocation() async {
+  Future<LatLng> getLocation({bool enableHighAccuracy = true}) async {
     var c = Completer<LatLng>();
 
     var timer = Timer(Duration(seconds: 5), () {
@@ -36,6 +36,15 @@ class Location {
     });
 
     try {
+      if (enableHighAccuracy) {
+        _instance.changeSettings(
+          accuracy: location.LocationAccuracy.high,
+        );
+      } else {
+        _instance.changeSettings(
+          accuracy: location.LocationAccuracy.low,
+        );
+      }
       var position = await _instance.getLocation();
 
       if (timer.isActive) {

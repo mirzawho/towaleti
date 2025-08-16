@@ -62,9 +62,20 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     super.onInit();
 
     initGPS();
+    initSplash();
     initSavedPlaces();
     initLatestCities();
     Services.ad.load();
+  }
+
+  void initSplash() {
+    if (!Services.app.handshaked) {
+      Services.app.handshake().then((_) => update());
+    }
+
+    if (!Services.firebase.firebased) {
+      Services.firebase.init();
+    }
   }
 
   void initShowcase(BuildContext context) {
@@ -101,7 +112,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void initGPS() async {
-    var value = await initCurrentPosition();
+    var value = await initCurrentPosition(checkGPSPermission: false);
 
     if (value) {
       initGPSInterval();
@@ -109,7 +120,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       return;
     }
 
-    value = await initCurrentPosition();
+    value = await initCurrentPosition(checkGPSPermission: false);
 
     if (value) {
       initGPSInterval();
@@ -131,7 +142,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     });
   }
 
-  Future<bool> initCurrentPosition() async {
+  Future<bool> initCurrentPosition({bool checkGPSPermission = true}) async {
     try {
       log('[home.controller.dart] getting current position');
 
@@ -142,6 +153,9 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       if (result != null) {
         if (result.latitude == 0 && result.longitude == 0) {
           hasGPSPermission.value = false;
+          if (checkGPSPermission) {
+            requestGPSPermission();
+          }
           return false;
         }
 
@@ -155,6 +169,10 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
         return true;
       } else {
         hasGPSPermission.value = false;
+
+        if (checkGPSPermission) {
+          requestGPSPermission();
+        }
       }
 
       return false;
@@ -162,6 +180,9 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       gettingGPSPermission.value = false;
       log('[home.controller.dart] error on setting current position');
       print(e);
+      if (checkGPSPermission) {
+        requestGPSPermission();
+      }
       return false;
     }
   }
@@ -174,18 +195,38 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     update();
   }
 
-  void requestGPSPermission() async {
+  void requestGPSPermission({bool force = true}) async {
     var result = await Services.gps.requestPermission();
 
     if (result == PermissionStatus.granted) {
-      if (await initCurrentPosition()) {
+      if (force && await initCurrentPosition()) {
+        return;
+      }
+
+      if (!force) {
         return;
       }
     }
 
+    showGPSPermissionSnackbar(status: result);
+  }
+
+  void showGPSPermissionSnackbar({PermissionStatus? status = null}) {
     Get.snackbar(
       '',
       '',
+      margin: EdgeInsets.only(
+        top: 6,
+        left: 12,
+        right: 12,
+      ),
+      boxShadows: [
+        BoxShadow(
+          color: CupertinoColors.quaternarySystemFill,
+          blurRadius: 12,
+          spreadRadius: 1,
+        ),
+      ],
       titleText: Text(
         'دسترسی نداریم',
         style: TextStyle(
@@ -209,7 +250,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
           ? null
           : TextButton(
               onPressed: () {
-                if (result != PermissionStatus.granted) {
+                if (status != PermissionStatus.granted) {
                   Services.gps.openPermission();
                 } else {
                   Services.gps.openSettings();

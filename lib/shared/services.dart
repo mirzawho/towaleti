@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:towaleti/shared/services/access.service.dart';
 import 'package:towaleti/shared/services/ad.service.dart';
 import 'package:towaleti/shared/services/api.service.dart';
+import 'package:towaleti/shared/services/app.service.dart';
 import 'package:towaleti/shared/services/chrome.service.dart';
 import 'package:towaleti/shared/services/city.service.dart';
 import 'package:towaleti/shared/services/configs.service.dart';
@@ -15,6 +16,7 @@ import 'package:towaleti/shared/services/http.service.dart';
 import 'package:towaleti/shared/services/place.service.dart';
 
 class Services {
+  static AppService get app => Get.find(tag: 'app');
   static AdService get ad => Get.find(tag: 'ad');
   static EventService get event => Get.find(tag: 'event');
   static ConnectivityService get connectivity => Get.find(tag: 'connectivity');
@@ -30,6 +32,7 @@ class Services {
 
   static put() async {
     developer.log('[services.dart] start put Get services');
+    Get.lazyPut(() => AppService(), tag: 'app');
     Get.lazyPut(() => AdService(), tag: 'ad');
     Get.lazyPut(() => EventService(), tag: 'event');
     Get.lazyPut(() => ConnectivityService(), tag: 'connectivity');

@@ -40,11 +40,12 @@ class Location {
   }
 
   // current location
-  Future<LatLng> getLocation() async {
+  Future<LatLng> getLocation({bool enableHighAccuracy = false}) async {
     try {
       final position =
           await html.window.navigator.geolocation.getCurrentPosition(
-        enableHighAccuracy: true,
+        enableHighAccuracy: enableHighAccuracy,
+        timeout: Duration(seconds: 5),
       );
 
       return LatLng(

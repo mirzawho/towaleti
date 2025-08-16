@@ -88,11 +88,9 @@ class DefaultFirebaseOptions {
 }
 
 class FirebaseService extends GetxService {
-  Future<void> init() async {
-    if (kIsWeb) {
-      return;
-    }
+  bool firebased = false;
 
+  Future<void> init() async {
     log('[firebase.service.dart] firebase');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -110,9 +108,7 @@ class FirebaseService extends GetxService {
     log('[firebase.service.dart] firebase_crashlytics');
     FirebaseAnalytics.instance;
 
-    // log('[firebase.service.dart] firebase_remote_config');
-    // FirebaseRemoteConfig.instance;
-    // await FirebaseRemoteConfig.instance.fetchAndActivate();
+    firebased = true;
   }
 
   Future<void> crash(String error) async {
