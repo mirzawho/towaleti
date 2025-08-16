@@ -31,7 +31,7 @@ class DialogInfoView extends StatelessWidget {
     }
 
     return Container(
-      height: Get.mediaQuery.padding.bottom + 500,
+      height: Get.mediaQuery.padding.bottom + 560,
       width: double.infinity,
       padding: EdgeInsets.only(
         top: 12,
