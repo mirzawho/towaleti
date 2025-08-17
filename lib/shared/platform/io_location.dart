@@ -30,20 +30,13 @@ class Location {
     bool enableHighAccuracy = true,
     required Function(LatLng? latLng) onData,
   }) {
-    // _instance.onLocationChanged.listen(
-    //   (data) {
-    //     log('[io_location.dart] stream location ${data.latitude},${data.longitude}');
-
-    //     onData(
-    //       LatLng(data.latitude ?? 0, data.longitude ?? 0),
-    //     );
-    //   },
-    //   onError: (_) {
-    //     onData(null);
-    //   },
-    // );
-
-    Geolocator.getPositionStream().listen(
+    Geolocator.getPositionStream(
+      locationSettings: LocationSettings(
+        accuracy:
+            enableHighAccuracy ? LocationAccuracy.high : LocationAccuracy.low,
+        distanceFilter: 10,
+      ),
+    ).listen(
       (data) {
         log('[io_location.dart] stream location ${data.latitude},${data.longitude}');
 
