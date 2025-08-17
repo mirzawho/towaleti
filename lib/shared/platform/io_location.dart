@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -25,50 +26,81 @@ class Location {
     return _instance.requestPermission();
   }
 
-  // current location
-  Future<LatLng> getLocation({bool enableHighAccuracy = true}) async {
-    var c = Completer<LatLng>();
+  void streamLocation({
+    bool enableHighAccuracy = true,
+    required Function(LatLng? latLng) onData,
+  }) {
+    // _instance.onLocationChanged.listen(
+    //   (data) {
+    //     log('[io_location.dart] stream location ${data.latitude},${data.longitude}');
 
-    var timer = Timer(Duration(seconds: 5), () {
-      if (!c.isCompleted) {
-        c.complete(LatLng(0, 0));
-      }
-    });
+    //     onData(
+    //       LatLng(data.latitude ?? 0, data.longitude ?? 0),
+    //     );
+    //   },
+    //   onError: (_) {
+    //     onData(null);
+    //   },
+    // );
+
+    Geolocator.getPositionStream().listen(
+      (data) {
+        log('[io_location.dart] stream location ${data.latitude},${data.longitude}');
+
+        onData(
+          LatLng(data.latitude, data.longitude),
+        );
+      },
+      onError: (_) {
+        onData(null);
+      },
+    );
+  }
+
+  // current location
+  Future<LatLng> getLocation({
+    bool enableHighAccuracy = true,
+    int timeout = 5,
+  }) async {
+    var c = Completer<LatLng>();
+    var future = c.future;
+
+    // var timer = Timer(Duration(seconds: timeout), () {
+    //   if (!c.isCompleted) {
+    //     c.complete(LatLng(0, 0));
+    //   }
+    // });
+
+    future.timeout(
+      Duration(seconds: timeout),
+      onTimeout: () {
+        log('[io_location.dart] get location timeout');
+        if (!c.isCompleted) {
+          c.completeError(TimeoutException('Operation timed out'));
+        }
+        return LatLng(0, 0);
+      },
+    );
 
     try {
-      if (enableHighAccuracy) {
-        _instance.changeSettings(
-          accuracy: location.LocationAccuracy.high,
-        );
-      } else {
-        _instance.changeSettings(
-          accuracy: location.LocationAccuracy.low,
-        );
-      }
-      var position = await _instance.getLocation();
-
-      if (timer.isActive) {
-        timer.cancel();
-      }
+      var position = await Geolocator.getCurrentPosition();
 
       if (!c.isCompleted) {
         c.complete(
           LatLng(
-            position.latitude!,
-            position.longitude!,
+            position.latitude,
+            position.longitude,
           ),
         );
       }
     } catch (e) {
       print(e);
-      if (timer.isActive) {
-        timer.cancel();
-      }
+
       if (!c.isCompleted) {
         c.complete(LatLng(0, 0));
       }
     }
 
-    return c.future;
+    return future;
   }
 }

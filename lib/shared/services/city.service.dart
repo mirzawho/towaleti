@@ -4,6 +4,18 @@ import 'package:towaleti/shared/database/cities.database.dart';
 import 'package:towaleti/shared/services.dart';
 
 class CityService extends GetxService {
+  RxList<CityModel> cities = <CityModel>[...cities_database].obs;
+
+  RxList<CityModel> get sortedCities {
+    try {
+      return RxList<CityModel>(
+        cities..sort((a, b) => a.name.compareTo(b.name)),
+      );
+    } catch (e) {
+      return RxList<CityModel>();
+    }
+  }
+
   Future<void> select(CityModel city) async {
     var values = await Services.configs.get(key: 'city_latest');
 

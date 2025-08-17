@@ -12,6 +12,15 @@ class CityModel {
     this.zoom = 14.0,
   });
 
+  factory CityModel.fromJson(Map<String, dynamic> json) {
+    return CityModel(
+      name: json['name'],
+      lat: json['lat'],
+      lon: json['lon'],
+      zoom: json['zoom']?.toDouble() ?? 14.0,
+    );
+  }
+
   toJson() {
     return {
       'name': name,

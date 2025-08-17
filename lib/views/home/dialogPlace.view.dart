@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:gap/gap.dart';
 import 'package:get/get.dart';
+import 'package:towaleti/models/firebase.model.dart';
 import 'package:towaleti/models/place.model.dart';
 import 'package:towaleti/shared/services.dart';
 import 'package:towaleti/shared/vibration.dart';
@@ -179,6 +180,9 @@ class _DialogPlaceViewState extends State<DialogPlaceView> {
                       // open maps
                       vibrate();
                       Services.place.navigation(place: widget.place);
+                      Services.firebase.event(
+                        type: FIREBASE_EVENT_TYPE.NAVIGATION,
+                      );
                     },
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -206,6 +210,9 @@ class _DialogPlaceViewState extends State<DialogPlaceView> {
                   onPressed: () {
                     vibrate();
                     Services.place.share(place: widget.place);
+                    Services.firebase.event(
+                      type: FIREBASE_EVENT_TYPE.SHARE_PLACE,
+                    );
                   },
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -232,6 +239,11 @@ class _DialogPlaceViewState extends State<DialogPlaceView> {
                   onPressed: () {
                     vibrate();
                     Services.place.toggle(place: widget.place);
+                    Services.firebase.event(
+                      type: saved
+                          ? FIREBASE_EVENT_TYPE.UNSAVE
+                          : FIREBASE_EVENT_TYPE.SAVE,
+                    );
                     saved = !saved;
                     setState(() {});
                   },

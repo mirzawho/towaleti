@@ -3,6 +3,7 @@ import 'package:gap/gap.dart';
 import 'package:get/get.dart';
 import 'package:soft_edge_blur/soft_edge_blur.dart';
 import 'package:towaleti/models/city.model.dart';
+import 'package:towaleti/shared/services.dart';
 import 'package:towaleti/views/splash/splash.controller.dart';
 
 class SplashView extends GetView<SplashController> {
@@ -11,6 +12,8 @@ class SplashView extends GetView<SplashController> {
   @override
   Widget build(BuildContext context) {
     Get.put(SplashController());
+
+    Services.chrome.transparent();
 
     return Obx(
       () => CupertinoPageScaffold(
@@ -119,7 +122,11 @@ class SplashView extends GetView<SplashController> {
   }
 
   Widget selectYourCity() {
-    Widget city({required CityModel item, String? selected}) {
+    Widget city({
+      required CityModel item,
+      String? message,
+      String? selected,
+    }) {
       return GestureDetector(
         onTap: () {
           controller.selectCity(city: item);
@@ -153,13 +160,26 @@ class SplashView extends GetView<SplashController> {
                 ),
               ),
               const Gap(8),
-              Text(
-                item.name,
-                style: TextStyle(
-                  color: CupertinoColors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    style: TextStyle(
+                      color: CupertinoColors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (message != null && message.isNotEmpty)
+                    Text(
+                      message,
+                      style: TextStyle(
+                        color: CupertinoColors.black.withOpacity(0.8),
+                        fontSize: 10,
+                      ),
+                    ),
+                ],
               ),
               const Spacer(),
               CupertinoRadio(
@@ -207,7 +227,12 @@ class SplashView extends GetView<SplashController> {
                 ),
               ),
               const Gap(10),
-              for (var item in controller.cities)
+              city(
+                item: controller.currentPosition.value,
+                selected: controller.selectedCity.value,
+                message: controller.currentPositionMessage.value,
+              ),
+              for (var item in Services.city.sortedCities.value)
                 city(
                   item: item,
                   selected: controller.selectedCity.value,

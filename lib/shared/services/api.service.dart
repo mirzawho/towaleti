@@ -34,7 +34,7 @@ class APIService extends GetxService {
     }
   }
 
-  Future<dynamic> reverse({
+  Future<dynamic> search({
     required String address,
     String? city,
   }) async {
@@ -44,6 +44,23 @@ class APIService extends GetxService {
         data: {
           'address': address,
           'city': city,
+        },
+      );
+    } catch (e) {
+      throw Exception('Failed to load data');
+    }
+  }
+
+  Future<dynamic> reverse({
+    required double lat,
+    required double lon,
+  }) async {
+    try {
+      return Services.http.call(
+        action: 'place.reverse',
+        data: {
+          'lat': lat,
+          'lon': lon,
         },
       );
     } catch (e) {

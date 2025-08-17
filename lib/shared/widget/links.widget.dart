@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:towaleti/models/firebase.model.dart';
 import 'package:towaleti/shared/constants.dart';
+import 'package:towaleti/shared/services.dart';
 import 'package:towaleti/shared/vibration.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,14 +23,17 @@ class LinksWidget extends StatelessWidget {
           link(
             title: 'شرایط استفاده',
             path: '/terms',
+            firebase: FIREBASE_EVENT_TYPE.OPEN_TERMS,
           ),
           link(
             title: 'حریم خصوصی',
             path: '/privacy',
+            firebase: FIREBASE_EVENT_TYPE.OPEN_PRIVACY,
           ),
           link(
             title: 'درباره ما',
             path: '/about',
+            firebase: FIREBASE_EVENT_TYPE.OPEN_ABOUT,
           ),
           if (CONSTANTS.urlFeedback != null &&
               (CONSTANTS.flavor == "cafebazaar" || CONSTANTS.flavor == "myket"))
@@ -41,6 +46,7 @@ class LinksWidget extends StatelessWidget {
                   //
                 }
               },
+              firebase: FIREBASE_EVENT_TYPE.COMMENT,
             ),
           if (CONSTANTS.urlUpdate != null && CONSTANTS.versionIsOld)
             link(
@@ -52,10 +58,11 @@ class LinksWidget extends StatelessWidget {
                   //
                 }
               },
+              firebase: FIREBASE_EVENT_TYPE.OPEN_NEW_VERSION,
             ),
           if (CONSTANTS.urlShare != null)
             link(
-              title: 'اشتراک گذاری اپلیکییشن',
+              title: 'اشتراک گذاری اپلیکیشن',
               onTap: () {
                 try {
                   SharePlus.instance.share(
@@ -67,6 +74,7 @@ class LinksWidget extends StatelessWidget {
                   //
                 }
               },
+              firebase: FIREBASE_EVENT_TYPE.SHARE_APP,
             ),
           if (CONSTANTS.urlFormAd != null)
             link(
@@ -78,6 +86,7 @@ class LinksWidget extends StatelessWidget {
                   //
                 }
               },
+              firebase: FIREBASE_EVENT_TYPE.OPEN_FORM_AD,
             ),
           if (CONSTANTS.urlFormPlace != null)
             link(
@@ -89,6 +98,7 @@ class LinksWidget extends StatelessWidget {
                   //
                 }
               },
+              firebase: FIREBASE_EVENT_TYPE.OPEN_FORM_PLACE,
             ),
         ],
       ),
@@ -99,9 +109,14 @@ class LinksWidget extends StatelessWidget {
     required String title,
     String? path,
     Function? onTap,
+    FIREBASE_EVENT_TYPE? firebase,
   }) {
     return GestureDetector(
       onTap: () {
+        if (firebase != null) {
+          Services.firebase.event(type: firebase);
+        }
+
         if (path != null) {
           vibrate();
           Get.toNamed(path);

@@ -1,31 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:gap/gap.dart';
 import 'package:towaleti/models/city.model.dart';
-import 'package:towaleti/shared/database/cities.database.dart';
 
-class AllCitiesWidget extends StatefulWidget {
+class AllCitiesWidget extends StatelessWidget {
+  final List<CityModel> cities;
+
   final Function({required CityModel city})? onCitySelect;
 
   const AllCitiesWidget({
     super.key,
+    required this.cities,
     this.onCitySelect,
   });
-
-  @override
-  State<AllCitiesWidget> createState() => _AllCitiesWidgetState();
-}
-
-class _AllCitiesWidgetState extends State<AllCitiesWidget> {
-  List<CityModel> citiesSorted = [];
-
-  @override
-  void initState() {
-    super.initState();
-
-    citiesSorted = [...cities_database];
-    citiesSorted.sort((a, b) => a.name.compareTo(b.name));
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +43,7 @@ class _AllCitiesWidgetState extends State<AllCitiesWidget> {
             physics: const BouncingScrollPhysics(),
             child: Row(
               children: [
-                for (var item in citiesSorted) city(value: item),
+                for (var item in cities) city(value: item),
               ],
             ),
           ),
@@ -71,7 +57,7 @@ class _AllCitiesWidgetState extends State<AllCitiesWidget> {
   }) {
     return GestureDetector(
       onTap: () {
-        widget.onCitySelect!(city: value);
+        onCitySelect!(city: value);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(

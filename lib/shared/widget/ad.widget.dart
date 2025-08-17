@@ -3,6 +3,8 @@ import 'package:gap/gap.dart';
 import 'package:get/get.dart';
 import 'package:glass/glass.dart';
 import 'package:towaleti/models/ad.model.dart';
+import 'package:towaleti/models/firebase.model.dart';
+import 'package:towaleti/shared/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AdWidget extends StatelessWidget {
@@ -12,6 +14,21 @@ class AdWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Services.firebase.event(type: FIREBASE_EVENT_TYPE.OPEN_AD);
+
+        launchUrl(
+          Uri.parse(
+            ad.url,
+          ),
+        );
+      },
+      child: widget(),
+    );
+  }
+
+  Widget widget() {
     if (ad.version == 1) {
       return v1();
     }
@@ -228,13 +245,7 @@ class AdWidget extends StatelessWidget {
           CupertinoButton.tinted(
             color: CupertinoColors.activeOrange,
             sizeStyle: CupertinoButtonSize.small,
-            onPressed: () {
-              launchUrl(
-                Uri.parse(
-                  ad.url,
-                ),
-              );
-            },
+            onPressed: null,
             child: Text(
               ad.button,
               style: TextStyle(

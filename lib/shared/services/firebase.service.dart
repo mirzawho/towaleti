@@ -121,23 +121,15 @@ class FirebaseService extends GetxService {
   }) async {
     // switch case for each type
     switch (type) {
-      case FIREBASE_EVENT_TYPE.APP_OPEN:
+      case FIREBASE_EVENT_TYPE.OPEN_APP:
         await FirebaseAnalytics.instance.logAppOpen();
         break;
-      case FIREBASE_EVENT_TYPE.LOGIN:
-        await FirebaseAnalytics.instance.logLogin();
-        break;
-      case FIREBASE_EVENT_TYPE.SHARE:
+      default:
         await FirebaseAnalytics.instance.logEvent(
-          name: "share",
-        );
-      case FIREBASE_EVENT_TYPE.COMMENT:
-        await FirebaseAnalytics.instance.logEvent(
-          name: "comment",
-        );
-      case FIREBASE_EVENT_TYPE.LOGOUT:
-        await FirebaseAnalytics.instance.logEvent(
-          name: "logout",
+          name: type
+              .toString()
+              .toLowerCase()
+              .replaceAll('firebase_event_type.', ''),
         );
     }
     log('[firebase.service.dart] log event $type');
