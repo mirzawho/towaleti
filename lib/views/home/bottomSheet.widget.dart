@@ -13,7 +13,7 @@ import 'package:towaleti/shared/widget/ad.widget.dart';
 import 'package:towaleti/views/home/allCities.widget.dart';
 import 'package:towaleti/views/home/allPlaces.widget.dart';
 import 'package:towaleti/views/home/latestCities.widget.dart';
-import 'package:towaleti/views/home/links.widget.dart';
+import 'package:towaleti/shared/widget/links.widget.dart';
 
 class BottomSheetWidget extends StatelessWidget {
   final ScrollController? scrollController;
@@ -31,6 +31,7 @@ class BottomSheetWidget extends StatelessWidget {
       onAddressSelect;
   final void Function({required CityModel city})? onCitySelect;
   final List<CityModel> latestCities;
+  final List<CityModel> cities;
   final List<PlaceModel> places;
   final List<PlaceModel> savedPlaces;
   final Function({required PlaceModel place})? onPlaceSelect;
@@ -56,6 +57,7 @@ class BottomSheetWidget extends StatelessWidget {
     this.onAddressSelect,
     this.onCitySelect,
     this.latestCities = const [],
+    this.cities = const [],
     this.savedPlaces = const [],
     this.places = const [],
     this.onPlaceSelect,
@@ -225,6 +227,7 @@ class BottomSheetWidget extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 12),
                               child: AllCitiesWidget(
+                                cities: cities,
                                 onCitySelect: onCitySelect,
                               ),
                             ),
@@ -341,7 +344,7 @@ class BottomSheetWidget extends StatelessWidget {
               key: tutorial[1],
               title: "بزرگ نمایی",
               description:
-                  'با کلیک روی این دکمه، روی نقشه بزرگ نمایی می کنید و مکان های دقیق تری را پیدا می کنید.',
+                  'با کلیک روی این دکمه، در نقشه بزرگ نمایی می کنید و مکان های دقیق تری را پیدا می کنید.',
               titleAlignment: Alignment.centerRight,
               titleTextStyle: TextStyle(
                 fontFamily: "YekanBakh",
@@ -391,7 +394,7 @@ class BottomSheetWidget extends StatelessWidget {
               key: tutorial[2],
               title: "کوچک نمایی",
               description:
-                  'با کلیک روی این دکمه، روی نقشه کوچک نمایی می کنید و می توانید مکان های بیشتری را پیدا کنید.',
+                  'با کلیک روی این دکمه، در نقشه کوچک نمایی می کنید و می توانید مکان های بیشتری را پیدا کنید.',
               titleAlignment: Alignment.centerRight,
               titleTextStyle: TextStyle(
                 fontFamily: "YekanBakh",

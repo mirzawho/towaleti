@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:towaleti/views/home/home.view.dart';
-import 'package:towaleti/views/offline/offline.view.dart';
+import 'package:towaleti/views/info/info.view.dart';
 import 'package:towaleti/views/page/page.view.dart';
 import 'package:towaleti/views/splash/splash.view.dart';
 
@@ -10,8 +10,8 @@ List<GetPage> pages = [
     page: () => SplashView(),
   ),
   GetPage(
-    name: '/offline',
-    page: () => OfflineView(),
+    name: '/info',
+    page: () => InfoView(),
   ),
   GetPage(
     name: '/about',
@@ -24,10 +24,6 @@ List<GetPage> pages = [
   GetPage(
     name: '/privacy',
     page: () => DynamicPageView(slug: 'privacy'),
-  ),
-  GetPage(
-    name: '/ad',
-    page: () => DynamicPageView(slug: 'ad'),
   ),
   GetPage(
     name: '/home',

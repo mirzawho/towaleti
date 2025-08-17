@@ -72,7 +72,7 @@ class HomeView extends GetView<HomeController> {
                     child: MapWidget(
                       controller: controller.mapController.mapController,
                       currentPosition: controller.currentPosition.value,
-                      places: controller.places.value,
+                      places: controller.mapPlaces.value,
                       onPlaceSelect: ({required PlaceModel place}) {
                         controller.openPlaceBottomSheet(place);
                       },
@@ -100,7 +100,7 @@ class HomeView extends GetView<HomeController> {
                       controller.requestGPSPermission();
                     },
                     onInfoTap: () {
-                      controller.openInfoBottomSheet();
+                      controller.openInfo();
                     },
                   ),
                 ),
@@ -112,6 +112,7 @@ class HomeView extends GetView<HomeController> {
                   findingNearestPlace: controller.findingNearestPlace.value,
                   searching: controller.searching.value,
                   addresses: controller.addresses.value,
+                  cities: Services.city.sortedCities.value,
                   latestCities: controller.latestCities.value,
                   savedPlaces: controller.savedPlaces.value,
                   showSavedPlaces: controller.showSavedPlaces.value,

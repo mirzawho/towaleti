@@ -12,10 +12,10 @@ import 'package:sheet/sheet.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:towaleti/models/address.model.dart';
 import 'package:towaleti/models/city.model.dart';
+import 'package:towaleti/models/firebase.model.dart';
 import 'package:towaleti/models/place.model.dart';
 import 'package:towaleti/shared/services.dart';
 import 'package:towaleti/shared/vibration.dart';
-import 'package:towaleti/views/home/dialogInfo.view.dart';
 import 'package:towaleti/views/home/dialogPlace.view.dart';
 
 class HomeController extends GetxController with GetTickerProviderStateMixin {
@@ -54,7 +54,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
   RxList<CityModel> latestCities = List<CityModel>.empty(growable: true).obs;
 
-  Timer? timerGPS;
+  RxList<PlaceModel> mapPlaces = List<PlaceModel>.empty(growable: true).obs;
+
   Timer? timerFinding;
 
   @override
@@ -109,6 +110,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     var value = Services.place.list();
 
     savedPlaces.value = value;
+
+    updateMapPlaces();
   }
 
   void initGPS() async {
@@ -117,29 +120,26 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     if (value) {
       initGPSInterval();
       findPlaces(location: currentPosition.value);
-      return;
-    }
-
-    value = await initCurrentPosition(checkGPSPermission: false);
-
-    if (value) {
-      initGPSInterval();
-      findPlaces(location: currentPosition.value);
     }
   }
 
   void initGPSInterval() {
-    timerGPS = Timer.periodic(Duration(seconds: 5), (timer) async {
-      var result = await Services.gps.getLocation();
-      if (result != null) {
-        if (result.latitude == 0 && result.longitude == 0) {
-          return;
-        }
+    log('[home.controller.dart] init gps interval');
 
-        currentPosition.value = result;
-        hasGPSPermission.value = true;
-      }
-    });
+    Services.gps.streamLocation(
+      onData: (result) {
+        if (result != null) {
+          if (result.latitude == 0 && result.longitude == 0) {
+            return;
+          }
+
+          currentPosition.value = result;
+          hasGPSPermission.value = true;
+        } else {
+          hasGPSPermission.value = false;
+        }
+      },
+    );
   }
 
   Future<bool> initCurrentPosition({bool checkGPSPermission = true}) async {
@@ -150,12 +150,16 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       var result = await Services.gps.getLocation();
       gettingGPSPermission.value = false;
 
+      Get.forceAppUpdate();
+
       if (result != null) {
         if (result.latitude == 0 && result.longitude == 0) {
-          hasGPSPermission.value = false;
           if (checkGPSPermission) {
             requestGPSPermission();
+          } else {
+            hasGPSPermission.value = false;
           }
+
           return false;
         }
 
@@ -168,21 +172,23 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
         return true;
       } else {
-        hasGPSPermission.value = false;
-
         if (checkGPSPermission) {
           requestGPSPermission();
+        } else {
+          hasGPSPermission.value = false;
         }
       }
 
       return false;
     } catch (e) {
-      gettingGPSPermission.value = false;
       log('[home.controller.dart] error on setting current position');
       print(e);
       if (checkGPSPermission) {
         requestGPSPermission();
+      } else {
+        hasGPSPermission.value = false;
       }
+      update();
       return false;
     }
   }
@@ -195,26 +201,31 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     update();
   }
 
-  void requestGPSPermission({bool force = true}) async {
+  void requestGPSPermission({bool init = false, bool snackbar = true}) async {
     var result = await Services.gps.requestPermission();
 
     if (result == PermissionStatus.granted) {
-      if (force && await initCurrentPosition()) {
-        return;
-      }
+      hasGPSPermission.value = true;
 
-      if (!force) {
+      if (init && await initCurrentPosition()) {
         return;
       }
+    } else if (snackbar) {
+      hasGPSPermission.value = false;
+      showGPSPermissionSnackbar(status: result);
     }
-
-    showGPSPermissionSnackbar(status: result);
   }
 
-  void showGPSPermissionSnackbar({PermissionStatus? status = null}) {
+  void showGPSPermissionSnackbar({
+    PermissionStatus? status = null,
+    int timeout = 5,
+  }) {
+    log('[home.controller.dart] showing gps permission snackbar');
+
     Get.snackbar(
       '',
       '',
+      duration: Duration(seconds: timeout),
       margin: EdgeInsets.only(
         top: 6,
         left: 12,
@@ -227,13 +238,18 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
           spreadRadius: 1,
         ),
       ],
-      titleText: Text(
-        'دسترسی نداریم',
-        style: TextStyle(
-          color: CupertinoColors.darkBackgroundGray,
-          fontFamily: "YekanBakh",
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
+      titleText: Padding(
+        padding: EdgeInsets.only(
+          top: kIsWeb ? 0 : 6,
+        ),
+        child: Text(
+          'دسترسی نداریم',
+          style: TextStyle(
+            color: CupertinoColors.darkBackgroundGray,
+            fontFamily: "YekanBakh",
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
         ),
       ),
       messageText: !kIsWeb
@@ -295,8 +311,19 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
   void selectCity({required CityModel city}) async {
     vibrate();
+    Services.firebase.event(type: FIREBASE_EVENT_TYPE.SELECT_CITY);
     await Services.city.select(city);
     initLatestCities();
+    sheetController.animateTo(
+      (Get.height - 200) / 2,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.bounceOut,
+    );
+    scrollController.animateTo(
+      0,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.bounceOut,
+    );
   }
 
   void findPlaces({required LatLng location, double zoom = 15}) {
@@ -304,7 +331,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       timerFinding!.cancel();
     }
 
-    timerFinding = Timer(Duration(milliseconds: 300), () async {
+    timerFinding = Timer(Duration(milliseconds: 500), () async {
       try {
         var values = await Services.place.find(
           location: location,
@@ -313,6 +340,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
         );
 
         places.value = values;
+
+        updateMapPlaces();
 
         sheetController.animateTo(
           (Get.height - 200) / 2,
@@ -348,8 +377,10 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     if (query.length < 3) return;
 
     try {
+      Services.firebase.event(type: FIREBASE_EVENT_TYPE.REVERSE_SEARCH);
+
       searching.value = true;
-      var result = await Services.api.reverse(address: query);
+      var result = await Services.api.search(address: query);
       searching.value = false;
 
       if (result['ok'] && result['locations'] != null) {
@@ -378,7 +409,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
           curve: Curves.bounceOut,
         );
 
-        update();
+        Get.forceAppUpdate();
       } else {
         log('[home.controller.dart] seems like we don\'t have any addresses');
       }
@@ -405,6 +436,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
       findingNearestPlace.value = true;
 
+      Services.firebase.event(type: FIREBASE_EVENT_TYPE.NEAREST_PLACE);
+
       var result = await Services.api.find(
         lat: currentPosition.value.latitude,
         lon: currentPosition.value.longitude,
@@ -430,6 +463,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
           places.value = [item];
 
+          updateMapPlaces();
+
           await mapController.animateTo(
             dest: LatLng(item.lat, item.lon),
             zoom: 16,
@@ -452,6 +487,23 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     }
   }
 
+  void updateMapPlaces() {
+    var _savedPlaces = savedPlaces.value;
+    var _places = places.value;
+
+    var output = [..._savedPlaces];
+
+    for (var item in _places) {
+      if (_savedPlaces.indexWhere(
+              (value) => value.lat == item.lat && value.lon == item.lon) ==
+          -1) {
+        output.add(item);
+      }
+    }
+
+    mapPlaces.value = output;
+  }
+
   void openPlaceBottomSheet(PlaceModel place) {
     vibrate();
 
@@ -468,6 +520,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       curve: Curves.bounceOut,
     );
 
+    Services.firebase.event(type: FIREBASE_EVENT_TYPE.OPEN_PLACE);
+
     Get.bottomSheet(
       DialogPlaceView(
         place: place,
@@ -477,8 +531,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     });
   }
 
-  void openInfoBottomSheet() {
+  void openInfo() {
     vibrate();
-    Get.bottomSheet(DialogInfoView());
+    Get.toNamed('/info');
   }
 }

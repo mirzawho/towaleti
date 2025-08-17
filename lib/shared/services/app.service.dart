@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:towaleti/models/city.model.dart';
 import 'package:towaleti/shared/constants.dart';
 import 'package:towaleti/shared/services.dart';
 
@@ -36,6 +37,17 @@ class AppService extends GetxService {
           CONSTANTS.urlFormAd = result['data']['url_form_ad'];
         } else {
           CONSTANTS.urlFormAd = null;
+        }
+
+        if (result['data']['page'] != null) {
+          Services.configs.set(key: 'page', value: result['data']['page']);
+        }
+
+        if (result['data']['cities'] != null) {
+          Services.configs.set(key: 'cities', value: result['data']['cities']);
+          Services.city.cities.value = result['data']['cities']
+              .map((e) => CityModel.fromJson(e))
+              .toList();
         }
 
         handshaked = true;

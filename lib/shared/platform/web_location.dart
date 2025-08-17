@@ -39,13 +39,39 @@ class Location {
     }
   }
 
+  void streamLocation({
+    bool enableHighAccuracy = true,
+    required Function(LatLng? latLng) onData,
+  }) {
+    html.window.navigator.geolocation
+        .watchPosition(
+      enableHighAccuracy: enableHighAccuracy,
+    )
+        .listen(
+      (data) {
+        onData(
+          LatLng(
+            double.parse((data.coords?.latitude ?? 0).toString()),
+            double.parse((data.coords?.longitude ?? 0).toString()),
+          ),
+        );
+      },
+      onError: (_) {
+        onData(null);
+      },
+    );
+  }
+
   // current location
-  Future<LatLng> getLocation({bool enableHighAccuracy = false}) async {
+  Future<LatLng> getLocation({
+    bool enableHighAccuracy = false,
+    int timeout = 5,
+  }) async {
     try {
       final position =
           await html.window.navigator.geolocation.getCurrentPosition(
         enableHighAccuracy: enableHighAccuracy,
-        timeout: Duration(seconds: 5),
+        timeout: Duration(seconds: timeout),
       );
 
       return LatLng(

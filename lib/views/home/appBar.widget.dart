@@ -133,7 +133,7 @@ class AppBarWidget extends StatelessWidget {
                   key: tutorial[0],
                   title: "موقعیت مکانی",
                   description:
-                      'با کلیک روی این دکمه، توالت های موقعت مکانی الان خودتون رو دریافت می کنید.',
+                      'با کلیک روی این دکمه، توالت های اطراف موقعیت مکانی الان خودتون رو پیدا می کنید.',
                   titleAlignment: Alignment.centerRight,
                   titleTextStyle: TextStyle(
                     fontFamily: "YekanBakh",

@@ -10,6 +10,7 @@ class GPSService extends GetxService {
 
   // check location permission
   Future<PermissionStatus> getPermission() async {
+    log('[gps.service.dart] getting permission');
     var result = await _instance.getPermission();
     log('[gps.service.dart] get permission = $result');
     return result;
@@ -22,10 +23,38 @@ class GPSService extends GetxService {
     return result;
   }
 
+  void streamLocation({
+    bool enableHighAccuracy = true,
+    required Function(LatLng? latLng) onData,
+  }) {
+    _instance.streamLocation(
+      enableHighAccuracy: enableHighAccuracy,
+      onData: onData,
+    );
+  }
+
   Future<LatLng?> getLocation() async {
-    var result = await _instance.getLocation();
-    log('[gps.service.dart] get location = $result');
-    return result;
+    try {
+      // first check user has permission to get location
+      if (await getPermission() != PermissionStatus.granted) {
+        if (await requestPermission() != PermissionStatus.granted) {
+          return null;
+        }
+      }
+
+      var result = await _instance.getLocation().timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          return LatLng(0, 0);
+        },
+      );
+      log('[gps.service.dart] get location = $result');
+      return result;
+    } catch (e) {
+      log('[gps.serivce.dart] get location got error');
+      print(e);
+      return null;
+    }
   }
 
   Future<void> openPermission() {
