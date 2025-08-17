@@ -227,7 +227,7 @@ class AdWidget extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  width: Get.width - 220,
+                  width: Get.width - 200,
                   child: Text(
                     ad.subtitle,
                     overflow: TextOverflow.ellipsis,
