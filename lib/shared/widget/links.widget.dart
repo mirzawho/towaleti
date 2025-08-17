@@ -12,6 +12,8 @@ class LinksWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var page = Services.configs.get(key: 'page');
+
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
@@ -20,21 +22,24 @@ class LinksWidget extends StatelessWidget {
       ),
       child: Column(
         children: [
-          link(
-            title: 'شرایط استفاده',
-            path: '/terms',
-            firebase: FIREBASE_EVENT_TYPE.OPEN_TERMS,
-          ),
-          link(
-            title: 'حریم خصوصی',
-            path: '/privacy',
-            firebase: FIREBASE_EVENT_TYPE.OPEN_PRIVACY,
-          ),
-          link(
-            title: 'درباره ما',
-            path: '/about',
-            firebase: FIREBASE_EVENT_TYPE.OPEN_ABOUT,
-          ),
+          if (page['terms'] != null)
+            link(
+              title: 'شرایط استفاده',
+              path: '/terms',
+              firebase: FIREBASE_EVENT_TYPE.OPEN_TERMS,
+            ),
+          if (page['privacy'] != null)
+            link(
+              title: 'حریم خصوصی',
+              path: '/privacy',
+              firebase: FIREBASE_EVENT_TYPE.OPEN_PRIVACY,
+            ),
+          if (page['about'] != null)
+            link(
+              title: 'درباره ما',
+              path: '/about',
+              firebase: FIREBASE_EVENT_TYPE.OPEN_ABOUT,
+            ),
           if (CONSTANTS.urlFeedback != null &&
               (CONSTANTS.flavor == "cafebazaar" || CONSTANTS.flavor == "myket"))
             link(
