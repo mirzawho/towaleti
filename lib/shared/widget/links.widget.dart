@@ -22,19 +22,19 @@ class LinksWidget extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (page['terms'] != null)
+          if (page != null && page['terms'] != null)
             link(
               title: 'شرایط استفاده',
               path: '/terms',
               firebase: FIREBASE_EVENT_TYPE.OPEN_TERMS,
             ),
-          if (page['privacy'] != null)
+          if (page != null && page['privacy'] != null)
             link(
               title: 'حریم خصوصی',
               path: '/privacy',
               firebase: FIREBASE_EVENT_TYPE.OPEN_PRIVACY,
             ),
-          if (page['about'] != null)
+          if (page != null && page['about'] != null)
             link(
               title: 'درباره ما',
               path: '/about',
