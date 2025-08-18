@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:get/get.dart';
 import 'package:towaleti/models/city.model.dart';
 import 'package:towaleti/shared/constants.dart';
@@ -11,6 +13,10 @@ class AppService extends GetxService {
       var result = await Services.api.handshake();
 
       if (result['ok']) {
+        log('[app.service.dart] handshaked');
+
+        handshaked = true;
+
         CONSTANTS.versionIsOld = result['data']['isUpdateAvailable'] ??
             result['data']['is_update_available'];
         CONSTANTS.verionIsDeprecated =
@@ -49,8 +55,6 @@ class AppService extends GetxService {
               .map((e) => CityModel.fromJson(e))
               .toList();
         }
-
-        handshaked = true;
       }
     } catch (e) {
       //

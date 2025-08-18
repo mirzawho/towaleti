@@ -71,7 +71,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
   void initSplash() {
     if (!Services.app.handshaked) {
-      Services.app.handshake().then((_) => update());
+      Services.app.handshake().then((_) => Get.forceAppUpdate());
     }
 
     if (!Services.firebase.firebased) {
@@ -343,18 +343,20 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 
         updateMapPlaces();
 
-        sheetController.animateTo(
-          (Get.height - 200) / 2,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.bounceOut,
-        );
-        scrollController.animateTo(
-          0,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.bounceOut,
-        );
+        Timer(Duration(milliseconds: 500), () {
+          sheetController.animateTo(
+            (Get.height - 200) / 2,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.bounceOut,
+          );
+          scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.bounceOut,
+          );
+        });
 
-        update();
+        Get.forceAppUpdate();
 
         if (values.isNotEmpty && zoom >= 15) {
           Services.ad.request(type: "city");
@@ -398,16 +400,18 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
           );
         }
 
-        sheetController.animateTo(
-          (Get.height - 200) / 2,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.bounceOut,
-        );
-        scrollController.animateTo(
-          0,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.bounceOut,
-        );
+        Timer(Duration(milliseconds: 500), () {
+          sheetController.animateTo(
+            (Get.height - 200) / 2,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.bounceOut,
+          );
+          scrollController.animateTo(
+            0,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.bounceOut,
+          );
+        });
 
         Get.forceAppUpdate();
       } else {

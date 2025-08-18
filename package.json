@@ -6,11 +6,11 @@
   "author": "Mirza <sayheymirza@gamil.com>",
   "license": "MIT",
   "scripts": {
-    "build:sibapp": "flutter build ios --release --no-codesign --target lib/flavors/sibapp.dart  --verbose",
-    "build:cafebazaar": "flutter build aab --target lib/flavors/cafebazaar.dart  --verbose",
-    "build:cafebazaar:apk": "flutter build apk --target lib/flavors/cafebazaar.dart  --verbose",
-    "build:myket": "flutter build apk --target lib/flavors/myket.dart  --split-per-abi --verbose",
-    "build:web": "flutter build web --target lib/flavors/web.dart  --verbose",
+    "build:sibapp": "flutter build ios --release --no-codesign --target lib/flavors/sibapp.dart ",
+    "build:cafebazaar": "flutter build aab --target lib/flavors/cafebazaar.dart ",
+    "build:cafebazaar:apk": "flutter build apk --target lib/flavors/cafebazaar.dart ",
+    "build:myket": "flutter build apk --target lib/flavors/myket.dart  --split-per-abi",
+    "build:web": "flutter build web --target lib/flavors/web.dart ",
     "sign": "java -jar bundlesigner.jar genbin  -v --bundle build/app/outputs/bundle/release/app-release.aab --bin build/app/outputs/bundle/release/  --v2-signing-enabled true --v3-signing-enabled false --ks android/app/mirza-sign.jks" 
   }
 }

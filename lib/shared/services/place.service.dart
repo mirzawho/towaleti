@@ -72,7 +72,7 @@ class PlaceService extends GetxService {
 
     SharePlus.instance.share(
       ShareParams(
-        subject: 'اشتراک گذاری مکان',
+        subject: 'اینجا یک توالته با کمک توالتی پیدا کردم',
         uri: Uri.parse(
           url
               .replaceAll('LAT', place.lat.toString())
